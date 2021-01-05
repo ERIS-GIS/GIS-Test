@@ -186,6 +186,7 @@ if __name__ == '__main__':
             imagename = image['IMAGE_NAME']
             aerialyear = image['AERIAL_YEAR']
             imagesource = image['IMAGE_SOURCE']
+            imagecollection = image['IMAGE_COLLECTION_TYPE']
             originalpath = image['ORIGINAL_IMAGE_PATH']
 
             imageuploadpath = originalpath
@@ -193,7 +194,7 @@ if __name__ == '__main__':
             job_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.'+str(imagename.split('.')[-1])
             TAB_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.TAB'
 
-            if imagesource == 'DOQQ':                
+            if imagecollection == 'DOQQ':                
                 cellsizeX = arcpy.GetRasterProperties_management(imageuploadpath,'CELLSIZEX')
                 cellsizeY = arcpy.GetRasterProperties_management(imageuploadpath,'CELLSIZEY')
                 if cellsizeY > cellsizeX:

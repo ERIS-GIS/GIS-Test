@@ -1,6 +1,7 @@
+
+
 import os, arcpy, shutil
 import cx_Oracle
-import json
 
 class Machine:
     machine_test = r"\\cabcvan1gis006"
@@ -31,7 +32,7 @@ class Oracle:
     # static variable: oracle_functions
     oracle_functions = {'getorderinfo':"eris_gis.getOrderInfo"
     }
-    erisapi_procedures = {'getnewaerials':"FLOW_GEOREFERENCE.GetAerialnewPNG","setimagename":"Flow_inventory.setImageName"}
+    erisapi_procedures = {'getaeriallist':'flow_autoprep.getAerialImageJson','passclipextent': 'flow_autoprep.setClipImageDetail','getgeorefraw':"FLOW_GIS.getImageInventoryInfo"}
     def __init__(self,machine_name):
         # initiate connection credential
         if machine_name.lower() =='test':
@@ -118,63 +119,24 @@ class Oracle:
         except NameError as e:
             raise Exception("Bad Function")
         finally:
-            self.close_connection()
+            self.close_connection()+
 
 if __name__ == '__main__':
     OrderID = arcpy.GetParameterAsText(0)
-    AUI_ID = arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)
-    ee_oid = arcpy.GetParameterAsText(2)#'408212'#arcpy.GetParameterAsText(2)
-    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\test2'#arcpy.env.scratchFolder
+    scratch = r'C:\Users\JLoucks\Documents\JL\conversion_scratch'
+    rework = 'N'
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
-    arcpy.env.OverwriteOutput = True
 
-    orderInfo = Oracle('test').call_function('getorderinfo',OrderID)
+    orderInfo = Oracle('test').call_function('getorderinfo',orderID)
     OrderNumText = str(orderInfo['ORDER_NUM'])
     job_folder = os.path.join(job_directory,OrderNumText)
-    uploaded_dir = os.path.join(job_folder,"OrderImages")
 
     ### Get image path info ###
-    inv_infocall = str({"PROCEDURE":Oracle.erisapi_procedures['getnewaerials'],"ORDER_NUM":str(OrderNumText),"AUI_ID":str(AUI_ID),"PARENT_EE_OID":str(ee_oid)})
-    rework_return = Oracle('test').call_erisapi(inv_infocall)
-    rework_list_json = json.loads(rework_return[1])
-    print rework_list_json
-    if rework_list_json == []:
-        arcpy.AddError('Image list is empty')
+    inv_infocall = str({"PROCEDURE":eris_api_procedures['getgeorefraw'],"ORDER_NUM":OrderNumText})
+    raster_input = _
 
-    try:
-        if not os.path.exists(os.path.join(job_folder,'gc')):
-            os.mkdir(os.path.join(job_folder,'gc'))
-        for image in rework_list_json:
-            auid = image['AUI_ID']
-            imagename = image['IMAGE_NAME']
-            aerialyear = image['AERIAL_YEAR']
-            imagesource = image['IMAGE_SOURCE']
-            imagecollection = image['IMAGE_COLLECTION_TYPE']
-            originalpath = image['ORIGINAL_IMAGE_PATH']
-            imageuploadpath = os.path.join(uploaded_dir,originalpath.split('\\')[-1])
-            if imagecollection == 'DOQQ':
-                arcpy.AddWarning('Cannot convert DOQQ image '+originalpath)
-            else:
-                if os.path.exists(imageuploadpath):
-                    job_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.jpg'
-                    """PNG is copied to gc folder for FE with new naming convention"""
-                    if os.path.exists(os.path.join(job_folder,'gc',job_image_name)):
-                        os.remove(os.path.join(job_folder,'gc',job_image_name))
-                    #arcpy.CopyRaster_management(imageuploadpath,os.path.join(job_folder,'gc',job_image_name),colormap_to_RGB='ColormapToRGB',pixel_type='8_BIT_UNSIGNED',format='PNG',transform='NONE')
-                    arcpy.env.compression = "JPEG 50"
-                    arcpy.CopyRaster_management(imageuploadpath,os.path.join(job_folder,'gc',job_image_name),colormap_to_RGB='ColormapToRGB',pixel_type='8_BIT_UNSIGNED',format='JPEG',transform='NONE')
-                    """Rename original uploaded file with new naming convention
-                    BUT ORIGINAL EXTENSION!!! And call oracle to update the name. Path to the image
-                    will be updated once georeferencing in complete in that gp service"""
-                    new_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.'+imagename.split('.')[1]
-#                    if imageuploadpath == os.path.join(uploaded_dir,new_image_name):
-#                        arcpy.AddMessage('Image name already matches naming convention rules')
-#                    else:
-#                        os.rename(imageuploadpath,os.path.join(uploaded_dir,new_image_name))
-                    rename_call = str({"PROCEDURE":Oracle.erisapi_procedures['setimagename'],"ORDER_NUM":OrderNumText,"AUI_ID":auid,"IMAGE_NAME":str(new_image_name)})
-                    rename_return = Oracle('test').call_erisapi(rename_call)
-                    print json.loads(rework_return[1])
-                elif not os.path.exists(imageuploadpath):
-                    arcpy.AddError('cannot find image in OrderImages folder to convert, PLEASE CHECK PATH: '+imageuploadpath)
-    except Exception as e:
-        arcpy.AddError('Issue converting image: '+str(e.message))
+### Convert file
+    if rework == 'N':
+        arcpy.CopyRaster_management(raster_input,os.path.join(job_folder,'gc','auid.png'),colormap_to_RGB='ColormapToRGB',pixel_type='8_BIT_UNSIGNED',format='PNG',transform='NONE')
+        
+
