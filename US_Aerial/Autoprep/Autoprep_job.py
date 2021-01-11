@@ -204,13 +204,13 @@ def export_reportimage(imagepath,ordergeometry,auid):
             h_res= int((image_extent.height/image_extent.width)*w_res)"""
         if image_collection == 'DOQQ':
             df.extent = geo_extent
-            df.scale = ((df.scale/100)+1)*200
+            df.scale = ((df.scale/100)+1)*500
             w_res = 5100
             h_res = 6600
         elif image_collection != 'DOQQ':
             df.extent = image_extent
             df.scale = ((df.scale/100)-1)*85 #very important setting as it defines how much of the image will be displayed to FE
-            w_res=5100
+            w_res=10200
             h_res= int((image_extent.height/image_extent.width)*w_res)
             #if image_extent.width < 0 and image_extent.height < 0:
                 #w_res=int((image_extent.width*1000)*3)

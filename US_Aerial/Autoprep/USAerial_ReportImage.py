@@ -191,12 +191,17 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
     geometry_layer.visible = False
     geo_extent = geometry_layer.getExtent(True)
     df.extent = geo_extent
-    print df.scale
-    if df.scale <= MapScale:
+    MapScale = 6000
+    if UserMapScale is not None:
+        df.scale = UserMapScale
+        MapScale = UserMapScale
+        export_width = 5100
+        export_height = 6600
+    elif df.scale <= MapScale and UserMapScale is None:
         df.scale = MapScale
         export_width = 5100
         export_height = 6600
-    elif df.scale > MapScale:
+    elif df.scale > MapScale and UserMapScale is None:
         df.scale = ((int(df.scale)/100)+1)*100
         export_width = 5100
         export_height = 6600
@@ -272,12 +277,17 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
 
 if __name__ == '__main__':
     start = timeit.default_timer()
-    orderID = arcpy.GetParameterAsText(0)#'934578'#arcpy.GetParameterAsText(0)
-    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder
+    orderID = arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
+    UserMapScale = arcpy.GetParameterAsText(1)
+    scratch = arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_rev.mxd'
     wgs84_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\wgs84_template.mxd'
-    MapScale = 6000
+    if UserMapScale != '':
+        UserMapScale = int(UserMapScale)*12
+    else:
+        MapScale = 6000
+        UserMapScale = None
     arcpy.env.overwriteOutput=True
 
     ##get info for order from oracle
