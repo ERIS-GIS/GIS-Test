@@ -204,7 +204,7 @@ def export_reportimage(imagepath,ordergeometry,auid):
             h_res= int((image_extent.height/image_extent.width)*w_res)"""
         if image_collection == 'DOQQ':
             df.extent = geo_extent
-            df.scale = ((df.scale/100)+1)*500
+            df.scale = ((df.scale/100)+1)*1500
             w_res = 5100
             h_res = 6600
         elif image_collection != 'DOQQ':

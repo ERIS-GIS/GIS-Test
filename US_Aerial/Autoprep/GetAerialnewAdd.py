@@ -152,7 +152,7 @@ def export_reportimage(imagepath,auid):
         #arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_folder,'year'+'_source'+auid + '.jpg'),df,df_export_width=5100,df_export_height=6600,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 50)
         #arcpy.DefineProjection_management(os.path.join(job_folder,'year'+'_source'+auid + '.jpg'), 3857)
         #shutil.copy(os.path.join(job_folder,'year'+'_source'+auid + '.jpg'),os.path.join(jpg_image_folder,auid + '.jpg'))
-        mxd.saveACopy(os.path.join(scratch,auid+'_export.mxd'))
+        mxd.saveACopy(os.path.join(scratch,str(auid)+'_export.mxd'))
         return extent
         del mxd
 
@@ -160,10 +160,10 @@ if __name__ == '__main__':
     OrderID = arcpy.GetParameterAsText(0)#'934404'#arcpy.GetParameterAsText(0)
     AUI_ID = arcpy.GetParameterAsText(1)
     ee_oid = arcpy.GetParameterAsText(2)#'408212'#arcpy.GetParameterAsText(2)
-    scratch = arcpy.env.scratchFolder
+    scratch = r'C:\Users\JLoucks\Documents\JL\test1'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     georeferenced_historical = r'\\cabcvan1nas003\historical\Georeferenced_Aerial_test'
-    georeferenced_doqq = r'\\cabcvan1nas003\historical\Georeferenced_DOQQ_test'
+    georeferenced_doqq = r'\\cabcvan1nas003\doqq\Georeferenced_DOQQ_test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export.mxd'
     arcpy.env.OverwriteOutput = True
 
@@ -191,7 +191,8 @@ if __name__ == '__main__':
 
             imageuploadpath = originalpath
             TAB_upload_path = imageuploadpath.split('.')[0]+'.TAB'
-            job_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.'+str(imagename.split('.')[-1])
+            #job_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.'+str(imagename.split('.')[-1])
+            job_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.'+str(originalpath[-5:].split('.')[1])
             TAB_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.TAB'
 
             if imagecollection == 'DOQQ':                
