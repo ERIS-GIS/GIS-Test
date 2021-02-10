@@ -315,7 +315,7 @@ if __name__ == '__main__':
     job_fin = os.path.join(job_folder,'fin')
     if os.path.exists(job_fin):
         shutil.rmtree(job_fin)
-    os.mkdir(os.path.join(job_fin))
+    os.mkdir(job_fin)
     ##get image matrix and export
     for image_year in selected_list_json['RESULTS'].keys():
         getimage_dict = {}

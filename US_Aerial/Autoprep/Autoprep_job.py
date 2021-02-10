@@ -209,7 +209,7 @@ def export_reportimage(imagepath,ordergeometry,auid):
             h_res = 6600
         elif image_collection != 'DOQQ':
             df.extent = image_extent
-            df.scale = ((df.scale/100)-1)*85 #very important setting as it defines how much of the image will be displayed to FE
+            df.scale = ((df.scale/100))*85 #very important setting as it defines how much of the image will be displayed to FE
             w_res=10200
             h_res= int((image_extent.height/image_extent.width)*w_res)
             #if image_extent.width < 0 and image_extent.height < 0:
@@ -231,7 +231,13 @@ def export_reportimage(imagepath,ordergeometry,auid):
         arcpy.RefreshActiveView()
         arcpy.overwriteOutput = True
         sr2 = arcpy.SpatialReference(4326)
-        arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 70)
+        #decribe # of bands for raster to determine output
+        desc = arcpy.Describe(lyrpath)
+        bandcount = desc.bandcount
+        if bandcount == 1:
+            arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE', jpeg_quality = 70)
+        else:
+            arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 70)
         arcpy.DefineProjection_management(os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),sr2)
         #arcpy.env.compression = "JPEG 1"
         #arcpy.env.pyramid = "NONE"
