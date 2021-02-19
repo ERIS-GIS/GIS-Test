@@ -1,6 +1,7 @@
 import os, arcpy, shutil
 import cx_Oracle
 import json
+from PIL import Image
 
 class Machine:
     machine_test = r"\\cabcvan1gis006"
@@ -121,12 +122,13 @@ class Oracle:
             self.close_connection()
 
 if __name__ == '__main__':
-    OrderID = arcpy.GetParameterAsText(0)
-    AUI_ID = arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)
+    OrderID = arcpy.GetParameterAsText(0)#'983883'
+    AUI_ID = arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)'7367074'
     ee_oid = arcpy.GetParameterAsText(2)#'408212'#arcpy.GetParameterAsText(2)
     scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\test2'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     arcpy.env.OverwriteOutput = True
+    Image.MAX_IMAGE_PIXELS = 10000000000
 
     orderInfo = Oracle('test').call_function('getorderinfo',OrderID)
     OrderNumText = str(orderInfo['ORDER_NUM'])
@@ -160,9 +162,13 @@ if __name__ == '__main__':
                     """PNG is copied to gc folder for FE with new naming convention"""
                     if os.path.exists(os.path.join(job_folder,'gc',job_image_name)):
                         os.remove(os.path.join(job_folder,'gc',job_image_name))
-                    #arcpy.CopyRaster_management(imageuploadpath,os.path.join(job_folder,'gc',job_image_name),colormap_to_RGB='ColormapToRGB',pixel_type='8_BIT_UNSIGNED',format='PNG',transform='NONE')
-                    arcpy.env.compression = "JPEG 50"
-                    arcpy.CopyRaster_management(imageuploadpath,os.path.join(job_folder,'gc',job_image_name),colormap_to_RGB='ColormapToRGB',pixel_type='8_BIT_UNSIGNED',format='JPEG',transform='NONE')
+                    if imageuploadpath[-3:] in ['jpg','png','tif']:
+                        im = Image.open(imageuploadpath)
+                        subject_im = im.convert("RGB")
+                        subject_im.save(os.path.join(job_folder,'gc',job_image_name))
+                    else:
+                        arcpy.env.compression = "JPEG 50"
+                        arcpy.CopyRaster_management(imageuploadpath,os.path.join(job_folder,'gc',job_image_name),colormap_to_RGB='ColormapToRGB',pixel_type='8_BIT_UNSIGNED',format='JPEG',transform='NONE')
                     """Rename original uploaded file with new naming convention
                     BUT ORIGINAL EXTENSION!!! And call oracle to update the name. Path to the image
                     will be updated once georeferencing in complete in that gp service"""
@@ -177,4 +183,4 @@ if __name__ == '__main__':
                 elif not os.path.exists(imageuploadpath):
                     arcpy.AddError('cannot find image in OrderImages folder to convert, PLEASE CHECK PATH: '+imageuploadpath)
     except Exception as e:
-        arcpy.AddError('Issue converting image: '+str(e.message))
+        arcpy.AddError('Issue converting image: '+str(e.message, imageuploadpath))

@@ -268,9 +268,9 @@ def export_reportimage(imagepath,ordergeometry,auid):
 
 if __name__ == '__main__':
     start = timeit.default_timer()
-    orderID = arcpy.GetParameterAsText(0)#'934465'#arcpy.GetParameterAsText(0)
-    AUI_ID = arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)
-    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder
+    orderID = '968770'#arcpy.GetParameterAsText(0)#'934465'#arcpy.GetParameterAsText(0)
+    AUI_ID = '7424603'#arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)
+    scratch = r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export.mxd'
     conversion_input = r'\\192.168.136.164\v2_usaerial\input'

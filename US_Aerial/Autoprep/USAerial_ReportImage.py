@@ -164,12 +164,9 @@ def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef
     del cursor
     return outputSHP
 def export_reportimage(imagedict,ordergeometry,image_comment):
-    ## In memory
     arcpy.AddMessage("Adding to template: "+str(imagedict))
     mxd = arcpy.mapping.MapDocument(mxdexport_template)
     df = arcpy.mapping.ListDataFrames(mxd,'*')[0]
-    sr = arcpy.SpatialReference(3857)
-    df.SpatialReference = sr
     geo_lyr = arcpy.mapping.Layer(ordergeometry)
     arcpy.mapping.AddLayer(df,geo_lyr,'TOP')
     ordered_all_values = imagedict.keys()
@@ -187,6 +184,8 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         arcpy.MakeRasterLayer_management(imagepath,lyrpath)
         image_lyr = arcpy.mapping.Layer(lyrpath)
         arcpy.mapping.AddLayer(df,image_lyr,'TOP')
+    sr = arcpy.GetUTMFromLocation(centroidX,centroidY)
+    df.spatialReference = sr
     geometry_layer = arcpy.mapping.ListLayers(mxd,'OrderGeometry',df)[0]
     geometry_layer.visible = False
     geo_extent = geometry_layer.getExtent(True)
@@ -206,23 +205,8 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         export_width = 5100
         export_height = 6600
     arcpy.RefreshActiveView()
-            #if image_extent.width < 0 and image_extent.height < 0:
-                #w_res=int((image_extent.width*1000)*3)
-                #h_res=int((image_extent.height*1000)*3)
-            #elif image_extent.width > 1000 and image_extent.height > 1000:
-                #w_res=int((image_extent.width/1000)*3)
-                #h_res=int((image_extent.height/1000)*3)
-            #else:
-                #w_res = 5100
-                #h_res = 5100
-        ###############################
-        ## NEED TO EXPORT DF EXTENT TO ORACLE HERE
-        #sr = arcpy.SpatialReference(3857)
-        #df.SpatialReference = sr
-        #mxd.save()
     arcpy.overwriteOutput = True
     sr2 = arcpy.SpatialReference(4326)
-    ###############################
     ## NEED TO EXPORT DF EXTENT TO ORACLE HERE
     scale = df.scale
     if scale == 6000:
@@ -236,15 +220,10 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
     else:
         report_image_name = image_year + '_' + image_source  + '_'+filescale +'.jpg'
     arcpy.AddMessage("Exporting: "+report_image_name)
-    ##############################
-    #arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_folder,'year'+'_source'+auid + '.jpg'),df,df_export_width=5100,df_export_height=6600,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 50)
-    #arcpy.DefineProjection_management(os.path.join(job_folder,'year'+'_source'+auid + '.jpg'), 3857)
-    #shutil.copy(os.path.join(job_folder,'year'+'_source'+auid + '.jpg'),os.path.join(jpg_image_folder,auid + '.jpg'))
     arcpy.env.pyramid = "NONE"
-    arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 50)
+    arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 80)
     arcpy.DefineProjection_management(os.path.join(job_fin,report_image_name),sr)
     print "projecting"
-    df.SpatialReference = sr2
     wgs84mxd = arcpy.mapping.MapDocument(wgs84_template)
     image_report = arcpy.mapping.Layer(os.path.join(job_fin,report_image_name))
     df = arcpy.mapping.ListDataFrames(wgs84mxd,'*')[0]
@@ -279,32 +258,34 @@ if __name__ == '__main__':
     start = timeit.default_timer()
     orderID = arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
     UserMapScale = arcpy.GetParameterAsText(1)
-    scratch = arcpy.env.scratchFolder
+    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\test4'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
-    mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_rev.mxd'
+    mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_new.mxd'
     wgs84_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\wgs84_template.mxd'
+    arcpy.env.overwriteOutput=True
+
+    #Set dynamic or user defined scale
     if UserMapScale != '':
         UserMapScale = int(UserMapScale)*12
     else:
         MapScale = 6000
         UserMapScale = None
-    arcpy.env.overwriteOutput=True
 
     ##get info for order from oracle
     orderInfo = Oracle('test').call_function('getorderinfo',orderID)
     OrderNumText = str(orderInfo['ORDER_NUM'])
+    print eval(orderInfo['ORDER_GEOMETRY']['CENTROID'])[0][0][0]
+    print eval(orderInfo['ORDER_GEOMETRY']['CENTROID'])[0][0][1]
     job_folder = os.path.join(job_directory,OrderNumText)
-    ## Return aerial list from oracle
-    #oracle_autoprep = str({"PROCEDURE":Oracle.erisapi_procedures['getaeriallist'],"ORDER_NUM":OrderNumText})
-    #aerial_list_return = Oracle('test').call_erisapi(oracle_autoprep)
-    #aerial_list_json = json.loads(aerial_list_return[1])
 
+    ## Get order geometry and centroid
     OrderGeometry = createGeometry(eval(orderInfo[u'ORDER_GEOMETRY'][u'GEOMETRY'])[0],orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],scratch,'OrderGeometry.shp')
+    centroidX = eval(orderInfo['ORDER_GEOMETRY']['CENTROID'])[0][0][0]
+    centroidY = eval(orderInfo['ORDER_GEOMETRY']['CENTROID'])[0][0][1]
     shutil.copy(mxdexport_template,os.path.join(scratch,'template.mxd'))
     shutil.copy(wgs84_template,os.path.join(scratch,'wgs84.mxd'))
     mxdexport_template = os.path.join(scratch,'template.mxd')
     wgs84_template = os.path.join(scratch,'wgs84.mxd')
-    ## Get order geometry 
 
     oracle_input = str({"PROCEDURE":Oracle.erisapi_procedures['getselectedimages'],"ORDER_NUM":OrderNumText})
     selected_list_return = Oracle('test').call_erisapi(oracle_input)
@@ -316,6 +297,7 @@ if __name__ == '__main__':
     if os.path.exists(job_fin):
         shutil.rmtree(job_fin)
     os.mkdir(job_fin)
+
     ##get image matrix and export
     for image_year in selected_list_json['RESULTS'].keys():
         getimage_dict = {}

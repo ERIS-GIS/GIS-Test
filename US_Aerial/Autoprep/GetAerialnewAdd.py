@@ -160,10 +160,10 @@ if __name__ == '__main__':
     OrderID = arcpy.GetParameterAsText(0)#'934404'#arcpy.GetParameterAsText(0)
     AUI_ID = arcpy.GetParameterAsText(1)
     ee_oid = arcpy.GetParameterAsText(2)#'408212'#arcpy.GetParameterAsText(2)
-    scratch = r'C:\Users\JLoucks\Documents\JL\test1'#arcpy.env.scratchFolder
+    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\test1'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     georeferenced_historical = r'\\cabcvan1nas003\historical\Georeferenced_Aerial_test'
-    georeferenced_doqq = r'\\cabcvan1nas003\doqq\Georeferenced_DOQQ_test'
+    georeferenced_doqq = r'\\cabcvan1nas003\historical\Georeferenced_DOQQ_test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export.mxd'
     arcpy.env.OverwriteOutput = True
 
@@ -195,18 +195,21 @@ if __name__ == '__main__':
             job_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.'+str(originalpath[-5:].split('.')[1])
             TAB_image_name = str(aerialyear)+'_'+imagesource+'_'+str(auid)+'.TAB'
 
-            if imagecollection == 'DOQQ':                
+            if imagecollection == 'DOQQ':
+                SR = arcpy.Describe(imageuploadpath).spatialReference
+                if SR.name != 'GCS_WGS_1984':
+                    arcpy.ProjectRaster_management(imageuploadpath,os.path.join(scratch,'temp.tif'),4326)
+                    imageuploadpath =  os.path.join(scratch,'temp.tif')
                 cellsizeX = arcpy.GetRasterProperties_management(imageuploadpath,'CELLSIZEX')
                 cellsizeY = arcpy.GetRasterProperties_management(imageuploadpath,'CELLSIZEY')
                 if cellsizeY > cellsizeX:
                     spatial_res = cellsizeY
                 else:
                     spatial_res = cellsizeX
-                extent = export_reportimage(imageuploadpath,auid)
-                result_top = extent.YMax
-                result_bot = extent.YMin
-                result_left = extent.XMin  
-                result_right = extent.XMax
+                result_top = arcpy.GetRasterProperties_management(imageuploadpath, "TOP")  
+                result_bot = arcpy.GetRasterProperties_management(imageuploadpath, "BOTTOM")  
+                result_left = arcpy.GetRasterProperties_management(imageuploadpath, "LEFT")  
+                result_right = arcpy.GetRasterProperties_management(imageuploadpath, "RIGHT")
                 #Rename image and TAB
                 if os.path.exists(TAB_upload_path):
                     shutil.copy(os.path.join(uploaded_dir,TAB_image_name),os.path.join(georeferenced_doqq,TAB_image_name)) #copy TAB if exists
@@ -217,6 +220,10 @@ if __name__ == '__main__':
                 arcpy.Copy_management(os.path.join(scratch,job_image_name),os.path.join(georeferenced_doqq,job_image_name))
                 image_inv_path = os.path.join(georeferenced_doqq,job_image_name)
             else:
+                SR = arcpy.Describe(imageuploadpath).spatialReference
+                if SR.name != 'GCS_WGS_1984':
+                    arcpy.ProjectRaster_management(imageuploadpath,os.path.join(scratch,'temp.tif'),4326)
+                    imageuploadpath =  os.path.join(scratch,'temp.tif')
                 cellsizeX = arcpy.GetRasterProperties_management(imageuploadpath,'CELLSIZEX')
                 cellsizeY = arcpy.GetRasterProperties_management(imageuploadpath,'CELLSIZEY')
                 if cellsizeY > cellsizeX:
