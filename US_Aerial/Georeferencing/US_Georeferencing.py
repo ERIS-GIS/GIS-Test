@@ -2,15 +2,16 @@ import sys
 import os
 import arcpy
 import cx_Oracle
-import contextlib
 import json
-import ast
 import shutil
 import timeit
-import urllib
 import os
 import json
 from os import path
+file_path =os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(1,os.path.join(os.path.dirname(os.path.dirname(file_path)),'DB_Framework'))
+import models
+reload(sys)
 
 class Machine:
     machine_test = r"\\cabcvan1gis006"
@@ -124,8 +125,6 @@ def CoordToString(inputObj):
 def get_file_size(image_path):
     return int(os.stat(image_path).st_size)
 def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef = arcpy.SpatialReference(4326)):
-    # print('FC folder: %s' % output_folder)
-    # print('FC Name: %s' % output_name)
     outputFC = os.path.join(output_folder,output_name)
     if geometry_type.lower()== 'point':
         arcpy.CreateFeatureclass_management(output_folder, output_name, "MULTIPOINT", "", "DISABLED", "DISABLED", spatialRef)
@@ -141,18 +140,21 @@ def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef
         cursor.insertRow([arcpy.Polygon(arcpy.Array([arcpy.Point(*coords) for coords in pntCoords]),spatialRef)])
     del cursor
     return outputFC
-def apply_georeferencing(scratchFolder,inputRaster,srcPoints,gcpPoints,output_folder,out_img_name,transformation_type, resampling_type):
+def apply_georeferencing(inputRaster,srcPoints,gcpPoints,output_folder,out_img_name,transformation_type, resampling_type):
     arcpy.AddMessage('Start Georeferencing...')
     sr_wgs_84 = arcpy.SpatialReference(4326)
     # georeference to WGS84
-    # gcsImage_wgs84 = arcpy.Warp_management(inputRaster, srcPoints,gcpPoints,os.path.join(scratchFolder,'image_gc.tif'), transformation_type, resampling_type)
     output_geo_ref_image = os.path.join(output_folder,out_img_name + '.tif')
-    arcpy.Warp_management(inputRaster, srcPoints,gcpPoints,output_geo_ref_image)
+    
+    arcpy.Warp_management(inputRaster, srcPoints,gcpPoints, output_geo_ref_image, transformation_type, resampling_type)
+    # arcpy.Warp_management(inputRaster, srcPoints,gcpPoints,output_geo_ref_image)
+    
     arcpy.DefineProjection_management(output_geo_ref_image,sr_wgs_84)
+    set_raster_background(output_geo_ref_image)
     arcpy.AddMessage('Output Image(.tif): %s' % output_geo_ref_image)
     arcpy.AddMessage('--Georeferencing Done.')
     return output_geo_ref_image
-def export_to_jpg(env,imagepath,outputImage_jpg,ordergeometry,auid):
+def export_to_jpg(env,imagepath,outputImage_jpg,order_geometry,auid):
     mxd = arcpy.mapping.MapDocument(mxdexport_template)
     df = arcpy.mapping.ListDataFrames(mxd,'*')[0]
     sr_wgs84 = arcpy.SpatialReference(4326)
@@ -160,7 +162,7 @@ def export_to_jpg(env,imagepath,outputImage_jpg,ordergeometry,auid):
     lyrpath = os.path.join(arcpy.env.scratchFolder,auid + '.lyr')
     arcpy.MakeRasterLayer_management(imagepath,lyrpath)
     image_lyr = arcpy.mapping.Layer(lyrpath)
-    geo_lyr = arcpy.mapping.Layer(ordergeometry)
+    geo_lyr = arcpy.mapping.Layer(order_geometry)
     arcpy.mapping.AddLayer(df,image_lyr,'TOP')
     arcpy.mapping.AddLayer(df,geo_lyr,'TOP')
     geometry_layer = arcpy.mapping.ListLayers(mxd,'OrderGeometry',df)[0]
@@ -176,70 +178,74 @@ def export_to_jpg(env,imagepath,outputImage_jpg,ordergeometry,auid):
         df.scale = ((int(df.scale)/100)+1)*100
         export_width = int(5100*1.4)
         export_height = int(6600*1.4)
+
     arcpy.RefreshActiveView()
-    ###############################
-    ## NEED TO EXPORT DF EXTENT TO ORACLE HERE (arial_image)
-    NW_corner= str(df.extent.XMin) + ',' +str(df.extent.YMax)
-    NE_corner= str(df.extent.XMax) + ',' +str(df.extent.YMax)
-    SW_corner= str(df.extent.XMin) + ',' +str(df.extent.YMin)
-    SE_corner= str(df.extent.XMax) + ',' +str(df.extent.YMin)
     message_return = None
     try:
-        image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passclipextent'], "ORDER_NUM" : order_num,"AUI_ID":auid,"SWLAT":str(df.extent.YMin),"SWLONG":str(df.extent.XMin),"NELAT":(df.extent.XMax),"NELONG":str(df.extent.XMax)})
+        image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passclipextent'], "ORDER_NUM" : order_obj.number,"AUI_ID":auid,"SWLAT":str(df.extent.YMin),"SWLONG":str(df.extent.XMin),"NELAT":(df.extent.XMax),"NELONG":str(df.extent.XMax)})
         message_return = Oracle(env).call_erisapi(image_extents)
         if message_return[3] != 'Y':
             raise OracleBadReturn
     except OracleBadReturn:
         arcpy.AddError('status: ' + message_return[3]+ ' - '+ message_return[2])
     ##############################
-    arcpy.mapping.ExportToJPEG(mxd,outputImage_jpg,df,df_export_width=export_width,df_export_height=export_height,world_file=False,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 50)
     mxd.saveACopy(os.path.join(arcpy.env.scratchFolder,auid+'_export.mxd'))
+    arcpy.mapping.ExportToJPEG(mxd,outputImage_jpg,df,df_export_width=export_width,df_export_height=export_height,world_file=False,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 50)
     del mxd
+def set_raster_background(input_raster):
+    desc = arcpy.Describe(input_raster)
+    for i in range(desc.bandCount):
+        arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 255')
 def ExportToOutputs(env,geroref_Image,outputImage_jpg,out_img_name,orderGeometry):
     ### Export georefed image as jpg file to jpg folder for US Aerial UI app
     output_image_jpg = os.path.join(outputImage_jpg,out_img_name + '.jpg')
-    export_to_jpg(env,geroref_Image,outputImage_jpg,orderGeometry,str(auid))
+    export_to_jpg(env,geroref_Image,output_image_jpg,orderGeometry,str(auid))
     arcpy.AddMessage('Output Image(.jpg): %s' % output_image_jpg)
-    
+    set_raster_background(output_image_jpg)
 if __name__ == '__main__':
     ### set input parameters
-    order_id = arcpy.GetParameterAsText(0)
+    id = arcpy.GetParameterAsText(0)
     auid = arcpy.GetParameterAsText(1)
-    # order_id = '1014715'
-    # auid = '7245290'
-    # order_id = '968839' 
-    # auid = '1907586' 
+    # id = '21030800010'
+    # auid = '7061304'
     env = 'test'
-    if str(order_id) != '' and str(auid) != '':
+    ## set scratch folder
+    scratch_folder = arcpy.env.scratchFolder
+    # arcpy.env.workspace = scratchFolder
+    arcpy.env.overwriteOutput = True 
+    arcpy.env.pyramid = 'NONE'
+    if str(id) != '' and str(auid) != '':
+        order_obj = models.Order().get_order(int(id))
         mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export.mxd'
         MapScale = 6000
         try:
             start = timeit.default_timer()
             ##get info for order from oracle
-            orderInfo = Oracle(env).call_function('getorderinfo',str(order_id))
-            order_num = str(orderInfo['ORDER_NUM'])
+            orderInfo = Oracle(env).call_function('getorderinfo',str(order_obj.id))
             job_folder = ''
             if env == 'test':
-                job_folder = os.path.join(OutputDirectory.job_directory_test,order_num)
+                job_folder = os.path.join(OutputDirectory.job_directory_test,order_obj.number)
             elif env == 'prod':
-                job_folder = os.path.join(OutputDirectory.job_directory_prod,order_num)
+                job_folder = os.path.join(OutputDirectory.job_directory_prod,order_obj.number)
             ### get georeferencing info from oracle
-            oracle_georef = str({"PROCEDURE":Oracle.erisapi_procedures["getGeoreferencingInfo"],"ORDER_NUM": order_num, "AUI_ID": str(auid)})
+            oracle_georef = str({"PROCEDURE":Oracle.erisapi_procedures["getGeoreferencingInfo"],"ORDER_NUM": order_obj.number, "AUI_ID": str(auid)})
             aerial_us_georef = Oracle(env).call_erisapi(oracle_georef)
             aerial_georefjson = json.loads(aerial_us_georef[1])
             if  (len(aerial_georefjson)) == 0:
                 arcpy.AddWarning('The  georeferencing information is not availabe!')
-                arcpy.AddWarning(aerial_georefjson[2])
+                if len(aerial_georefjson) > 0 and len(aerial_georefjson[2]) > 0:
+                    arcpy.AddWarning(aerial_georefjson[2])
             else:  
                 org_image_folder = os.path.join(job_folder,'org')
                 jpg_image_folder = os.path.join(job_folder,'jpg')
+                gc_image_folder = os.path.join(job_folder,'gc')
                 if not os.path.exists(job_folder):
                 #     shutil.rmtree(job_folder)
                     os.mkdir(job_folder)
                     os.mkdir(org_image_folder)
                     os.mkdir(jpg_image_folder)  
                 ### get input image from inventory
-                aerial_inventory = str({"PROCEDURE":Oracle.erisapi_procedures["getImageInventoryInfo"],"ORDER_NUM":order_num , "AUI_ID": str(auid)})
+                aerial_inventory = str({"PROCEDURE":Oracle.erisapi_procedures["getImageInventoryInfo"],"ORDER_NUM":order_obj.number , "AUI_ID": str(auid)})
                 aerial_us_inventory = Oracle(env).call_erisapi(aerial_inventory)
                 aerial_inventoryjson = json.loads(aerial_us_inventory[1])
                 
@@ -248,51 +254,41 @@ if __name__ == '__main__':
                     arcpy.AddWarning(aerial_us_inventory[2])
                 else:
                     image_input_path_inv = aerial_inventoryjson[0]['ORIGINAL_IMAGEPATH'] # image path from inventory  RAW_IMAGEPATH
-                    image_input_path_job = os.path.join(job_folder,aerial_georefjson['imgname'])
-                    arcpy.AddMessage('Input Image : %s' % image_input_path_inv)
-                    if  len(image_input_path_inv) == 0: # image is not in house
-                        image_input_path = image_input_path_job 
-                    else:
-                        image_input_path = image_input_path_inv
-
-                    if len(image_input_path) == 0 or not os.path.exists(image_input_path):
-                        arcpy.AddWarning(image_input_path +' DOES NOT EXIST')
-                    else:
+                    result_input_image_job = os.path.join(job_folder,'gc',aerial_georefjson['imgname'])
+                    order_geometry = os.path.join(job_folder,'OrderGeometry.shp')
+                    year = aerial_inventoryjson[0]['AERIAL_YEAR'] 
+                    img_source = aerial_inventoryjson[0]['IMAGE_SOURCE']
+                    ## setup image custom name year_DOQQ_AUI_ID
+                    out_img_name = '%s_%s_%s'%(year,img_source,str(auid))
+                    ## Read input image from job folder if there is a clip image, use it as input. If not use the original image in job folder)
+                    clipped_input_image = os.path.join(gc_image_folder,out_img_name + '_c.png')
+                    raw_input_image_job = os.path.join(gc_image_folder , out_img_name + '.jpg')
+                    if os.path.exists(clipped_input_image):
+                        input_image = clipped_input_image
+                    elif os.path.exists(result_input_image_job): ## this is the image which is alreary georeferenced by us aerial app
+                        input_image = result_input_image_job
+                    else: # read from inventory
                         # make a copy of raw image in the local folder beacuse the TAB file along with image format on server make arcgis confused
-                        parts = os.path.basename(image_input_path).split('.')
+                        parts = os.path.basename(image_input_path_inv).split('.')
                         input_raw_image_name = "".join(parts[:-1]) + '_raw' + '.' + parts[-1]
-                        shutil.copy(image_input_path, os.path.join(arcpy.env.scratchFolder,input_raw_image_name))
-                        input_image = os.path.join(arcpy.env.scratchFolder,input_raw_image_name)
-                        
-                        year = aerial_inventoryjson[0]['AERIAL_YEAR'] 
-                        img_source = aerial_inventoryjson[0]['IMAGE_SOURCE']
-                        ## setup image custom name year_DOQQ_AUI_ID
-                        out_img_name = '%s_%s_%s'%(year,img_source,str(auid))
-                        ## set scratch folder
-                        scratchFolder = arcpy.env.scratchFolder
-                        arcpy.env.workspace = scratchFolder
-                        arcpy.env.overwriteOutput = True 
-                        ### temp gdb in scratch folder
-                        tempGDB =os.path.join(scratchFolder,r"temp.gdb")
-                        if not os.path.exists(tempGDB):
-                            arcpy.CreateFileGDB_management(scratchFolder,r"temp.gdb")
-                        ## get order geometry 
-                        order_geometry = createGeometry(eval(orderInfo[u'ORDER_GEOMETRY'][u'GEOMETRY'])[0],orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],tempGDB,'OrderGeometry')
-                        gcpPoints = CoordToString(aerial_georefjson['envelope']) # footPrint
-                        ### Source point from input extent
-                        TOP = str(arcpy.GetRasterProperties_management(input_image,"TOP").getOutput(0))
-                        LEFT = str(arcpy.GetRasterProperties_management(input_image,"LEFT").getOutput(0))
-                        RIGHT = str(arcpy.GetRasterProperties_management(input_image,"RIGHT").getOutput(0))
-                        BOTTOM = str(arcpy.GetRasterProperties_management(input_image,"BOTTOM").getOutput(0))
-                        srcPoints = "'" + LEFT + " " + BOTTOM + "';" + "'" + RIGHT + " " + BOTTOM + "';" + "'" + RIGHT + " " + TOP + "';" + "'" + LEFT + " " + TOP + "'"
-                        ### Georeferencing
-                        img_georeferenced = apply_georeferencing(scratchFolder,input_image, srcPoints, gcpPoints,OutputDirectory.georef_images, out_img_name, TransformationType.POLYORDER2, ResamplingType.BILINEAR)
-                        ### ExportToOutputs
-                        ExportToOutputs(env,img_georeferenced, jpg_image_folder,out_img_name,order_geometry)
-                        ### Update image path in DB if image is not in hose
-                        file_size = get_file_size(img_georeferenced)
-                        strprod_update_path = str({"PROCEDURE":Oracle.erisapi_procedures["UpdateInventoryImagePath"],"AUI_ID": str(auid), "ORIGINAL_IMAGEPATH":img_georeferenced, "FILE_SIZE":file_size})
-                        message_return = Oracle(env).call_erisapi(strprod_update_path.replace('u','')) ## remove unicode chrachter u from json before calling strprod
+                        shutil.copy(image_input_path_inv, os.path.join(arcpy.env.scratch_folder,input_raw_image_name))
+                        input_image = os.path.join(arcpy.env.scratch_folder,input_raw_image_name)
+                    arcpy.AddMessage('Input Image : %s' % input_image)
+                    gcp_points = CoordToString(aerial_georefjson['envelope']) # footPrint
+                    ### Source point from input extent
+                    top = str(arcpy.GetRasterProperties_management(input_image,"TOP").getOutput(0))
+                    left = str(arcpy.GetRasterProperties_management(input_image,"LEFT").getOutput(0))
+                    right = str(arcpy.GetRasterProperties_management(input_image,"RIGHT").getOutput(0))
+                    bottom = str(arcpy.GetRasterProperties_management(input_image,"BOTTOM").getOutput(0))
+                    src_points = "'" + left + " " + bottom + "';" + "'" + right + " " + bottom + "';" + "'" + right + " " + top + "';" + "'" + left + " " + top + "'"
+                    ### Georeferencing
+                    img_georeferenced = apply_georeferencing(input_image, src_points, gcp_points,OutputDirectory.georef_images, out_img_name, '', ResamplingType.BILINEAR)
+                    ### ExportToOutputs
+                    ExportToOutputs(env,img_georeferenced, jpg_image_folder,out_img_name,order_geometry)
+                    
+                    file_size = get_file_size(img_georeferenced)
+                    strprod_update_path = str({"PROCEDURE":Oracle.erisapi_procedures["UpdateInventoryImagePath"],"AUI_ID": str(auid), "ORIGINAL_IMAGEPATH":img_georeferenced, "FILE_SIZE":file_size})
+                    message_return = Oracle(env).call_erisapi(strprod_update_path.replace('u','')) ## remove unicode chrachter u from json before calling strprod
             end = timeit.default_timer()
             arcpy.AddMessage(('Duration:', round(end -start,4)))
         except:
