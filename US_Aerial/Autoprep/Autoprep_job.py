@@ -303,7 +303,7 @@ if __name__ == '__main__':
             org_image_folder = os.path.join(job_folder,'org')
             jpg_image_folder = os.path.join(job_folder,'jpg')
             if os.path.exists(job_folder):
-                shutil.rmtree(job_folder)
+                shutil.rmtree(job_folder,ignore_errors=True)
             os.mkdir(job_folder)
             os.mkdir(org_image_folder)
             os.mkdir(jpg_image_folder)

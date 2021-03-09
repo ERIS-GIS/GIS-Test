@@ -1,35 +1,12 @@
-# Esri start of added imports
-import sys, os, arcpy
-# Esri end of added imports
-
-# Esri start of added variables
-g_ESRI_variable_1 = u'\\\\cabcvan1gis006\\GISData\\ERISReport\\ERISReport\\PDFToolboxes\\layer\\Streets\\Streets_US.lyr'
-g_ESRI_variable_2 = u'\\\\cabcvan1gis006\\GISData\\ERISReport\\ERISReport\\PDFToolboxes\\layer\\Streets\\Streets_CA.lyr'
-g_ESRI_variable_3 = u'in_memory/temp'
-g_ESRI_variable_4 = u'in_memory/temp1'
-g_ESRI_variable_5 = u'!SHAPE.CENTROID.X!'
-g_ESRI_variable_6 = u'!SHAPE.CENTROID.Y!'
-g_ESRI_variable_7 = u'xCentroid'
-g_ESRI_variable_8 = u'yCentroid'
-g_ESRI_variable_9 = u'UTM'
-g_ESRI_variable_10 = u'page'
-g_ESRI_variable_11 = u'Lon_X'
-g_ESRI_variable_12 = u'!POINT_X!'
-g_ESRI_variable_13 = u'Lat_Y'
-g_ESRI_variable_14 = u'!POINT_Y!'
-g_ESRI_variable_15 = u'Buffer'
-g_ESRI_variable_16 = u'"Onsite"'
-g_ESRI_variable_17 = u' "FID_orderg" = -1'
-g_ESRI_variable_18 = u'"SmallBuffer"'
-g_ESRI_variable_19 = u'Id'
-g_ESRI_variable_20 = u'\\\\cabcvan1gis006\\GISData\\PSR\\python'
-g_ESRI_variable_21 = u'Elevation'
-g_ESRI_variable_22 = u'"MapKeyTot" = 1'
-g_ESRI_variable_23 = u'ERISID'
-g_ESRI_variable_24 = u'!ERIS_ID!'
-g_ESRI_variable_25 = u'in_memory\\tempP'
-g_ESRI_variable_26 = u'in_memory\\tempI'
-# Esri end of added variables
+########################################################
+ ## Name: Create ERIS Report and XML
+ ## Source Name: ERISPDF.py
+ ## Version: ArcGIS 10.3
+ ## Author: Jian Liu
+ ##
+ ## Description: Generates the PDF file for the ERIS reports.
+ ## Date March 2015
+ ##############################################u##########
 
 # Import required modules
 import shutil, csv,json
@@ -58,15 +35,15 @@ def ds(DataSources):
 def getStreetList(query, unit1):
 
     if country== 'US':
-        streetlyr = g_ESRI_variable_1
+        streetlyr = r'\\cabcvan1gis006\GISData\ERISReport\ERISReport\PDFToolboxes\layer\Streets\Streets_US.lyr'
         streetFieldName = "FULLNAME"
     else:
-        streetlyr = g_ESRI_variable_2
+        streetlyr = r'\\cabcvan1gis006\GISData\ERISReport\ERISReport\PDFToolboxes\layer\Streets\Streets_CA.lyr'
         streetFieldName = "STREET"
 
     try:
         streetLayer = arcpy.mapping.Layer(streetlyr)
-        clippedStreet= g_ESRI_variable_3       # had to use clippedStreet in 10.0 for speed
+        clippedStreet= 'in_memory/temp'       # had to use clippedStreet in 10.0 for speed
         arcpy.Clip_analysis(streetLayer, query, clippedStreet)
 
     except:
@@ -94,7 +71,7 @@ def getStreetList(query, unit1):
 def calMapkey(fclass):
   arcpy.env.OverWriteOutput = True
 
-  temp = arcpy.CopyFeatures_management(fclass, g_ESRI_variable_4)
+  temp = arcpy.CopyFeatures_management(fclass, 'in_memory/temp1')
   cur = arcpy.UpdateCursor(temp,"Distance = 0" ,"","Dist_cent; Distance; MapKeyLoc; MapKeyNo", 'Dist_cent A; Source A')
 
   lastMapkeyloc = 0
@@ -221,12 +198,12 @@ try:
 
 #------------------------------------------------------------------------------------------------------------------
     # Pull in the Geoporcessing parameters in to local valiables.
-    OrderIDText = arcpy.GetParameterAsText(0)
-    scratch = arcpy.env.scratchWorkspace
-    # OrderIDText = '1014924'
-    # scratch = r"\\cabcvan1gis005\MISC_DataManagement\_AW\ENVP_US_scratchy\test_test"
+    OrderIDText = arcpy.GetParameterAsText(0) #"1028897"
+    # OrderIDText = '1028897'
     Buffer1 = "0.125"
-#------------------------------------------------------------------------------------------------------------------    
+    scratch = arcpy.env.scratchWorkspace
+    #scratch = arcpy.env.scratchFolder
+#------------------------------------------------------------------------------------------------------------------
     count1 = 0
     countI = 0
     countP = 0
@@ -314,11 +291,11 @@ try:
     arcpy.AddField_management(outshp, "yCentroid", "DOUBLE", 18, 11)
     arcpy.AddField_management(outshp, "ERIS_ID","LONG",10)
 
-    xExpression = g_ESRI_variable_5
-    yExpression = g_ESRI_variable_6
+    xExpression = '!SHAPE.CENTROID.X!'
+    yExpression = '!SHAPE.CENTROID.Y!'
 
-    arcpy.CalculateField_management(outshp, g_ESRI_variable_7, xExpression, "PYTHON_9.3")
-    arcpy.CalculateField_management(outshp, g_ESRI_variable_8, yExpression, "PYTHON_9.3")
+    arcpy.CalculateField_management(outshp, 'xCentroid', xExpression, "PYTHON_9.3")
+    arcpy.CalculateField_management(outshp, 'yCentroid', yExpression, "PYTHON_9.3")
 
 #3.  Create a shapefile of centroid
 
@@ -368,7 +345,7 @@ try:
         passLockTest = arcpy.TestSchemaLock(outPointSHP)
     arcpy.AddField_management(outPointSHP, "UTM", "TEXT", "", "", "1500", "", "NULLABLE", "NON_REQUIRED", "")
      # Process: Calculate UTM Zone- you need to UTM as a value to reproject
-    arcpy.CalculateUTMZone_cartography(outPointSHP, g_ESRI_variable_9)
+    arcpy.CalculateUTMZone_cartography(outPointSHP, 'UTM')
     UT= arcpy.SearchCursor(outPointSHP)
     for row in UT:
         UTMvalue = str(row.getValue('UTM'))[41:43]
@@ -386,7 +363,7 @@ try:
     projPointSHP = os.path.join(scratch, outPointPR)
     arcpy.Project_management(outPointSHP, projPointSHP, out_coordinate_system)
     arcpy.AddField_management(projPointSHP, "page", "SHORT")
-    arcpy.CalculateField_management(projPointSHP, g_ESRI_variable_10, '{0}'.format(2), "PYTHON_9.3", "")
+    arcpy.CalculateField_management(projPointSHP, 'page', '{0}'.format(2), "PYTHON_9.3", "")
 
 
 #5. Calculate UTM coordinates for XML as separate columns
@@ -402,8 +379,8 @@ try:
     arcpy.AddField_management(projPointSHP, "ERIS_ID","LONG",10)
 
      # Process: Calculate Field- XY Coordinates- UTM Northing and UTM easting in meters
-    arcpy.CalculateField_management(projPointSHP, g_ESRI_variable_11, g_ESRI_variable_12, "PYTHON_9.3", "")
-    arcpy.CalculateField_management(projPointSHP, g_ESRI_variable_13, g_ESRI_variable_14, "PYTHON_9.3", "")
+    arcpy.CalculateField_management(projPointSHP, 'Lon_X', '!POINT_X!', "PYTHON_9.3", "")
+    arcpy.CalculateField_management(projPointSHP, 'Lat_Y', '!POINT_Y!', "PYTHON_9.3", "")
 
     passLockTest = arcpy.TestSchemaLock(projPointSHP)
     while not passLockTest:
@@ -428,7 +405,7 @@ try:
         ERIS_sel= os.path.join(scratch,"ERISPoly"+OrderIDText+".shp")
         arcpy.Clip_analysis(ERIS, outshp, ERIS_sel)
         arcpy.AddField_management(ERIS_sel, "Buffer", "TEXT", "", "", "20", "", "NULLABLE", "NON_REQUIRED", "")
-        arcpy.CalculateField_management(ERIS_sel, g_ESRI_variable_15, g_ESRI_variable_16, "PYTHON_9.3", "")
+        arcpy.CalculateField_management(ERIS_sel, 'Buffer', '"Onsite"', "PYTHON_9.3", "")
         ERIS_select = ERIS_sel
         streetList0 = getStreetList(outshp,country)
 
@@ -447,19 +424,19 @@ try:
             outBufferjoin = os.path.join(scratch, "Bufferjoin.shp")
             arcpy.Union_analysis ([[projorderSHP,2], [outBuffer,1]],outBufferjoin)
             outBuffersel = os.path.join(scratch, "Buffersel.shp")
-            arcpy.Select_analysis(outBufferjoin,outBuffersel,g_ESRI_variable_17)
+            arcpy.Select_analysis(outBufferjoin,outBuffersel,' "FID_orderg" = -1')
             arcpy.Clip_analysis(ERIS, outBuffersel, ERIS_select)
         else:
             arcpy.Clip_analysis(ERIS, outBuffer, ERIS_select, X_YTolerance)
         arcpy.AddField_management(ERIS_select, "Buffer", "TEXT", "", "", "20", "", "NULLABLE", "NON_REQUIRED", "")
-        arcpy.CalculateField_management(ERIS_select, g_ESRI_variable_15, g_ESRI_variable_18, "PYTHON_9.3", "")
+        arcpy.CalculateField_management(ERIS_select, 'Buffer', '"SmallBuffer"', "PYTHON_9.3", "")
         ##polygon reports has either one or no buffer so appending to what is inside the polygon
         if OrderType.lower()== 'polygon':
             arcpy.Append_management(ERIS_sel, ERIS_select)
         streetList0 = getStreetList(outBuffer,country)
 
 #8 add orderID and UTM zone to projected centroid
-    arcpy.DeleteField_management(projPointSHP,g_ESRI_variable_19)
+    arcpy.DeleteField_management(projPointSHP,'Id')
     arcpy.AddField_management(projPointSHP,"ID","Long", "10")
     cur = arcpy.UpdateCursor(projPointSHP)
     for row in cur:
@@ -504,7 +481,7 @@ try:
 
 #10. Calculate Distance with integration and spatial join- can be easily done with Distance tool along with direction if ArcInfo or Advanced license
 
-    arcpy.ImportToolbox(os.path.join(g_ESRI_variable_20,"ERIS.tbx"))
+    arcpy.ImportToolbox(os.path.join(r'\\cabcvan1gis006\GISData\PSR\python',"ERIS.tbx"))
     projPointSHP = arcpy.inhouseElevation_ERIS(projPointSHP).getOutput(0)
 
     elevationArray=[]
@@ -531,14 +508,14 @@ try:
     elev_marker = row.getValue("Elevation")
     del cursor
     del row
-    arcpy.CalculateField_management(outshp, g_ESRI_variable_21, '{0}'.format(eval(str(elev_marker))), "PYTHON_9.3", "")
+    arcpy.CalculateField_management(outshp, 'Elevation', '{0}'.format(eval(str(elev_marker))), "PYTHON_9.3", "")
 
     ERIS_sj= os.path.join(scratch,"ERISSA.shp")
     ERIS_sja= os.path.join(scratch,"ERISSAT_temp.shp")
     arcpy.SpatialJoin_analysis(ERIS_clipcopy, outshp, ERIS_sj, "JOIN_ONE_TO_MANY", "KEEP_ALL","#", "CLOSEST","5000 Kilometers", "Distance")   # this is the reported distance
     arcpy.SpatialJoin_analysis(ERIS_sj,projPointSHP,ERIS_sja, "JOIN_ONE_TO_MANY", "KEEP_ALL","#", "CLOSEST","5000 Kilometers", "Dist_cent")
     ERIS_sja_final= os.path.join(scratch,"ERISSAT.shp")
-    arcpy.ImportToolbox(os.path.join(g_ESRI_variable_20,"ERIS.tbx"))
+    arcpy.ImportToolbox(os.path.join(r'\\cabcvan1gis006\GISData\PSR\python',"ERIS.tbx"))
     ERIS_sja = arcpy.inhouseElevation_ERIS(ERIS_sja).getOutput(0)
 
     elevationArray=[]
@@ -573,7 +550,7 @@ try:
     desc = arcpy.Describe(ERIS_sja_final)
     shapefieldName = desc.ShapeFieldName
     rows = arcpy.UpdateCursor(ERIS_sja_final)
-    
+
     for row in rows:
         erisid = int(row.getValue("ID_CHAR"))
         row.setValue("ERISID", float(erisid))
@@ -601,7 +578,7 @@ try:
     # Process: xmlWriter
     xmlName= os.path.join(scratch,"XML"+OrderIDText+".xml")
     log= os.path.join(scratch,  "log"+OrderIDText+".txt")
-    arcpy.ImportToolbox(os.path.join(g_ESRI_variable_20,"ERIS.tbx"))
+    arcpy.ImportToolbox(os.path.join(r'\\cabcvan1gis006\GISData\PSR\python',"ERIS.tbx"))
     arcpy.xmlWriter_ERIS(projPointSHP, ERIS_sja_final,xmlName, log)
 
 #write streetlist to Oracle
@@ -648,7 +625,7 @@ try:
         con = cx_Oracle.connect(EnvirScan_config.connectionString)
         cur = con.cursor()
         for ds_oid in list(set(ds_oids)):
-            cur.execute("select AST.incident_permit from eris_data_source EDS,astm_type_reference AST where eds.ds_oid = %s and eds.at_oid = ast.at_oid and AST.incident_permit is not null"%ds_oid)
+            cur.execute("select AST.incident_permit from eris_data_source EDS,astm_type_reference AST where eds.ds_oid = %s and eds.at_oid = ast.at_oid and AST.incident_permit is not null and update_status not in ('D','B','P','I')"%ds_oid)
             t = cur.fetchone()
             if t != None:
                 incident_permit = str(t[0])
@@ -673,11 +650,11 @@ try:
         permitText = permitText[:-12]
         ErisClip_permit= os.path.join(scratch,"ErisClip_permit.shp")
         arcpy.Select_analysis(ERIS_sja_final, "in_memory\\tempP", "\"DS_OID\" ="+permitText)
-        arcpy.Select_analysis(g_ESRI_variable_25, ErisClip_permit, g_ESRI_variable_22)
+        arcpy.Select_analysis('in_memory\\tempP', ErisClip_permit, '"MapKeyTot" = 1')
         newLayerERIS = arcpy.mapping.Layer(EnvirScan_config.ERIScanPermit)
         newLayerERIS.replaceDataSource(scratch, "SHAPEFILE_WORKSPACE", "ErisClip_permit")
         arcpy.mapping.AddLayer(df, newLayerERIS, "TOP")
-        arcpy.DeleteFeatures_management(g_ESRI_variable_25)
+        arcpy.DeleteFeatures_management('in_memory\\tempP')
     if 'INCIDENT' in IncidentDic.keys():
         inciText=' '
         countI = sum([ ds_oids.count(a) for a in IncidentDic['INCIDENT']])
@@ -686,11 +663,11 @@ try:
         inciText = inciText[:-12]
         ErisClip_incident= os.path.join(scratch,"ErisClip_incident.shp")
         arcpy.Select_analysis(ERIS_sja_final, "in_memory\\tempI", "\"DS_OID\" ="+inciText)
-        arcpy.Select_analysis(g_ESRI_variable_26, ErisClip_incident, g_ESRI_variable_22)
+        arcpy.Select_analysis('in_memory\\tempI', ErisClip_incident, '"MapKeyTot" = 1')
         newLayerERIS1 = arcpy.mapping.Layer(EnvirScan_config.ERIScanIncident)
         newLayerERIS1.replaceDataSource(scratch, "SHAPEFILE_WORKSPACE", "ErisClip_incident")
         arcpy.mapping.AddLayer(df, newLayerERIS1, "TOP")
-        arcpy.DeleteFeatures_management(g_ESRI_variable_26)
+        arcpy.DeleteFeatures_management('in_memory\\tempI')
 
 ##add geometry on main Map
     if OrderType.lower()== 'point':
@@ -749,4 +726,3 @@ except:
     #
     print pymsg + "\n"
     print msgs
-
