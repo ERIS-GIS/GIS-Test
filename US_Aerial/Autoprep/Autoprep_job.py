@@ -320,9 +320,9 @@ if __name__ == '__main__':
                     image_year = str(inhouse_image['AERIAL_YEAR'])
                     image_source = inhouse_image['IMAGE_SOURCE']
                     image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
-                    selected_flag = inhouse_image['SELECTED_FLAG']
+                    selected_flag = inhouse_image['GIS_SELECTED_FLAG']
                     if image_source == '':
-                        image_source = 'UNKWN'
+                        image_source = ''
                     if selected_flag == 'Y':
                         export_reportimage(image_name,OrderGeometry,image_auid)
 
@@ -336,9 +336,9 @@ if __name__ == '__main__':
                     image_year = str(inhouse_image['AERIAL_YEAR'])
                     image_source = inhouse_image['IMAGE_SOURCE']
                     image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
-                    selected_flag = inhouse_image['SELECTED_FLAG']
+                    selected_flag = inhouse_image['GIS_SELECTED_FLAG']
                     if image_source == '':
-                        image_source = 'UNKWN'
+                        image_source = ''
                     if selected_flag == 'Y':
                         export_reportimage(image_name,OrderGeometry,image_auid)
                 
@@ -351,9 +351,9 @@ if __name__ == '__main__':
                     image_year = str(inhouse_image['AERIAL_YEAR'])
                     image_source = inhouse_image['IMAGE_SOURCE']
                     image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
-                    selected_flag = inhouse_image['SELECTED_FLAG']
+                    selected_flag = inhouse_image['GIS_SELECTED_FLAG]
                     if image_source == '':
-                        image_source = 'UNKWN'
+                        image_source = ''
                     if selected_flag == 'Y':
                         export_reportimage(image_name,OrderGeometry,image_auid)
             except KeyError as k:
@@ -388,7 +388,7 @@ if __name__ == '__main__':
                 image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
                 selected_flag = inhouse_image['SELECTED_FLAG']
                 if image_source == '':
-                    image_source = 'UNKWN'
+                    image_source = ''
                 export_reportimage(image_name,OrderGeometry,image_auid)
         elif len(doqq_image_candidates) == 1:
             for inhouse_image in doqq_image_candidates:
@@ -399,7 +399,7 @@ if __name__ == '__main__':
                 image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
                 selected_flag = inhouse_image['SELECTED_FLAG']
                 if image_source == '':
-                    image_source = 'UNKWN'
+                    image_source = ''
                 export_reportimage(image_name,OrderGeometry,image_auid)
         elif len(index_image_candidates) == 1:
             for inhouse_image in index_image_candidates:
@@ -410,7 +410,7 @@ if __name__ == '__main__':
                 image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
                 selected_flag = inhouse_image['SELECTED_FLAG']
                 if image_source == '':
-                    image_source = 'UNKWN'
+                    image_source = ''
                 export_reportimage(image_name,OrderGeometry,image_auid)
         else:
             arcpy.AddError('No Available Image for that AUI ID')
