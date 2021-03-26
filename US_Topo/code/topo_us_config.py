@@ -50,7 +50,7 @@ scratchgdb = arcpy.env.scratchGDB
 order_obj = models.Order().get_order(OrderIDText)
 
 # # flags
-# multipage = "Y"                     # Y/N, for multipages, set yesBoundary to 'fixed' (not 'yes') if want boundary to display
+# multipage = "Y"                     # Y/N, for multipages
 # gridsize =  0 # "3 KiloMeters"           # for multipage grid
 # yesBoundary = "yes"                 # fixed/yes/no
 # BufsizeText = "2.4"

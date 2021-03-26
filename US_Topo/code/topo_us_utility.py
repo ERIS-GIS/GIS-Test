@@ -1063,12 +1063,12 @@ class topo_us_rpt(object):
             if os.path.exists(reportcheckzip):
                 os.remove(reportcheckzip)
             shutil.copyfile(scratchzip,reportcheckzip)
-            arcpy.SetParameterAsText(3, scratchzip)
+            arcpy.SetParameterAsText(5, scratchzip)
         else:
             if os.path.exists(reportcheckpdf):
                 os.remove(reportcheckpdf)
             shutil.copyfile(scratchpdf,reportcheckpdf)
-            arcpy.SetParameterAsText(3, scratchpdf)
+            arcpy.SetParameterAsText(5, scratchpdf)
 
         try:
             procedure = 'eris_topo.processTopo'

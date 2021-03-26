@@ -2,7 +2,7 @@
 import arcpy,os
 import ConfigParser
 
-server_environment = 'TEst'
+server_environment = 'Test'
 server_config_file = r'\\cabcvan1gis006\GISData\ERISServerConfig.ini'
 # connection_string = r'ERIS_GIS/gis295@GMTESTC.glaciermedia.inc'  # Dev
 connection_string = r'eris_gis/gis295@cabcvan1ora006.glaciermedia.inc:1521/GMTESTC'
