@@ -2,13 +2,14 @@ import os
 import sys
 import arcpy
 import ConfigParser
+import topo_us as tpus
 
 file_path =os.path.dirname(os.path.abspath(__file__))
 if 'arcgisserver' in file_path:
     model_path = os.path.join(r'D:/arcgisserver/directories/arcgissystem/arcgisinput/GPtools/DB_Framework')
 else:
     main_path = os.path.abspath(os.path.join(__file__, os.pardir))
-    model_path = os.path.join(main_path.split('GIS_Test')[0],'GIS_Test','DB_Framework')
+    model_path = os.path.join(main_path.split('GIS-Test')[0],'GIS-Test','DB_Framework')
 
 sys.path.insert(1,model_path)
 import models
@@ -38,13 +39,13 @@ def server_loc_config(configpath,environment):
 #     return scratch, scratchgdb
 
 # arcpy parameters
-OrderIDText = arcpy.GetParameterAsText(0)
-yesBoundary = (arcpy.GetParameterAsText(1)).lower()
-BufsizeText = arcpy.GetParameterAsText(2)
-multipage = arcpy.GetParameterAsText(3)
-gridsize = arcpy.GetParameterAsText(4)
-scratch = arcpy.env.scratchWorkspace
-scratchgdb = arcpy.env.scratchGDB
+OrderIDText = tpus.OrderIDText
+yesBoundary = tpus.yesBoundary
+BufsizeText = tpus.BufsizeText
+multipage = tpus.multipage
+gridsize = tpus.gridsize
+scratch = tpus.scratch
+scratchgdb = tpus.scratchgdb
 
 # order info
 order_obj = models.Order().get_order(OrderIDText)
