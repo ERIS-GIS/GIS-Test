@@ -5,7 +5,7 @@ import ConfigParser
 
 file_path =os.path.dirname(os.path.abspath(__file__))
 if 'arcgisserver' in file_path:
-    model_path = os.path.join(r'\\cabcvan1gis006\arcgisserver\directories\arcgisjobs\gptools\DB_Framework')
+    model_path = os.path.join(r'\\cabcvan1gis006\arcgisserver\directories\arcgissystem\arcgisinput\GPtools\DB_Framework')
 else:
     main_path = os.path.abspath(os.path.join(__file__, os.pardir))
     model_path = os.path.join(main_path.split('GIS_Test')[0],'GIS_Test','DB_Framework')
