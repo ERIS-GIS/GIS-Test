@@ -2,14 +2,13 @@ import os
 import sys
 import arcpy
 import ConfigParser
-import topo_us as tpus
 
 file_path =os.path.dirname(os.path.abspath(__file__))
 if 'arcgisserver' in file_path:
-    model_path = os.path.join(r'D:/arcgisserver/directories/arcgissystem/arcgisinput/GPtools/DB_Framework')
+    model_path = os.path.join(r'\\cabcvan1gis006\arcgisserver\directories\arcgisjobs\gptools\DB_Framework')
 else:
     main_path = os.path.abspath(os.path.join(__file__, os.pardir))
-    model_path = os.path.join(main_path.split('GIS-Test')[0],'GIS-Test','DB_Framework')
+    model_path = os.path.join(main_path.split('GIS_Test')[0],'GIS_Test','DB_Framework')
 
 sys.path.insert(1,model_path)
 import models
@@ -39,13 +38,13 @@ def server_loc_config(configpath,environment):
 #     return scratch, scratchgdb
 
 # arcpy parameters
-OrderIDText = tpus.OrderIDText
-yesBoundary = tpus.yesBoundary
-BufsizeText = tpus.BufsizeText
-multipage = tpus.multipage
-gridsize = tpus.gridsize
-scratch = tpus.scratch
-scratchgdb = tpus.scratchgdb
+OrderIDText = arcpy.GetParameterAsText(0)
+yesBoundary = (arcpy.GetParameterAsText(1)).lower()
+BufsizeText = arcpy.GetParameterAsText(2)
+multipage = arcpy.GetParameterAsText(3)
+gridsize = arcpy.GetParameterAsText(4)
+scratch = arcpy.env.scratchFolder
+scratchgdb = arcpy.env.scratchGDB
 
 # order info
 order_obj = models.Order().get_order(OrderIDText)
@@ -70,7 +69,8 @@ extent = os.path.join(scratch, scratchgdb, "extent")
 
 # connections/report outputs
 server_environment = 'test'
-server_config_file = r"\\cabcvan1gis006\GISData\ERISServerConfig.ini"
+serverpath = r"\\cabcvan1gis006"
+server_config_file = os.path.join(serverpath, r"GISData\ERISServerConfig.ini")
 server_config = server_loc_config(server_config_file,server_environment)
 
 reportcheckFolder = server_config["reportcheck"]
@@ -79,15 +79,16 @@ topouploadurl =  server_config["viewer_upload"] + r"/TopoUpload?ordernumber="
 connectionString = server_config["dbconnection"] #con.connection_string #'eris_gis/gis295@cabcvan1ora006.glaciermedia.inc:1521/GMTESTC'
 
 # folders
-connectionPath = r"\\cabcvan1gis006\GISData\Topo_USA"
+connectionPath = os.path.join(serverpath, r"GISData\Topo_USA")
 mxdpath = os.path.join(connectionPath, r"mxd")
 
 # master data files\folders
-mastergdb = os.path.join(connectionPath, r"masterfile\MapIndices_National_GDB.gdb")
-csvfile_h = os.path.join(connectionPath, r"masterfile\All_HTMC_all_all_gda_results.csv")
-csvfile_c = os.path.join(connectionPath, r"masterfile\All_USTopo_T_7.5_gda_results.csv")
-tifdir_h = r'\\cabcvan1fpr009\USGS_Topo\USGS_HTMC_Geotiff'
-tifdir_c = r'\\cabcvan1fpr009\USGS_Topo\USGS_currentTopo_Geotiff'
+masterfolder = r'\\cabcvan1fpr009\USGS_Topo'
+csvfile_h = os.path.join(masterfolder, r"USGS_MapIndice\All_HTMC_all_all_gda_results.csv")
+csvfile_c = os.path.join(masterfolder, r"USGS_MapIndice\All_USTopo_T_7.5_gda_results.csv")
+mastergdb = os.path.join(masterfolder, r"USGS_MapIndice\MapIndices_National_GDB.gdb")
+tifdir_h = os.path.join(masterfolder, "USGS_HTMC_Geotiff")
+tifdir_c = os.path.join(masterfolder, "USGS_currentTopo_Geotiff")
 
 # mxds
 mxdfile = os.path.join(mxdpath,"template.mxd")

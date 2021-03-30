@@ -662,9 +662,8 @@ class topo_us_rpt(object):
     def selectTopo(self, orderGeometry, extent, projection):                
         arcpy.env.overwriteOutput = True
         arcpy.env.outputCoordinateSystem = projection
-        arcpy.env.workspace = cfg.mastergdb
 
-        arcpy.MakeFeatureLayer_management("Cell_PolygonAll", 'masterLayer')
+        arcpy.MakeFeatureLayer_management(os.path.join(cfg.mastergdb, "Cell_PolygonAll"), 'masterLayer')
 
         arcpy.SelectLayerByLocation_management("masterLayer",'INTERSECT', orderGeometry, None, 'NEW_SELECTION')     # select main topo images that intersect geometry
         rowsMain = [str(r.getValue("CELL_ID")) for r in arcpy.SearchCursor("masterLayer")]
@@ -751,7 +750,7 @@ class topo_us_rpt(object):
                             arcpy.AddWarning("### Error in the year of the map..." + year2use)
                     
                     yearalldict[pdfname] = {}
-                    infomatrix.append([row["Cell ID"],row["Grid Size"],pdfname,year2use,"topo", "rowsMain"])
+                    infomatrix.append([row["Cell ID"],row["Grid Size"],pdfname,year2use,str("topo"), "rowsMain"])                       # need to 'str' 'topo' because arcgis server analyze was giving error 00068
 
             f.seek(0)       # resets to beginning of csv
             next(f)         # skip header
@@ -765,10 +764,10 @@ class topo_us_rpt(object):
                         if year2use[0:2] != "20":
                             arcpy.AddWarning("### Error in the year of the map..." + year2use)
 
-                    if [row["Grid Size"],year2use,"topo"] in [[y[1],y[3],y[4]] for y in infomatrix]:
+                    if [row["Grid Size"],year2use,str("topo")] in [[y[1],y[3],y[4]] for y in infomatrix]:                               # need to 'str' 'topo' because arcgis server analyze was giving error 00068
                         if pdfname not in yearalldict:
                             yearalldict[pdfname] = {}
-                            infomatrix.append([row["Cell ID"],row["Grid Size"],pdfname,year2use,"topo", "rowsAdj"])  # [64818, 15X15 GRID,  LA_Zachary_335142_1963_62500_geo.pdf,  1963, "topo"]
+                            infomatrix.append([row["Cell ID"],row["Grid Size"],pdfname,year2use,str("topo"), "rowsAdj"])  # [64818, 15X15 GRID,  LA_Zachary_335142_1963_62500_geo.pdf,  1963, str("topo")]
 
         maps7575 = []
         maps1515 = []
@@ -787,16 +786,16 @@ class topo_us_rpt(object):
         topoType = diction[year][0]
         seriesText = diction[year][1]
         mscale = 24000
-        if topoType == 'htmc':
-            mscale = int(diction[year][2][0][0].split('_')[-2])   # assumption: WI_Ashland East_500066_1964_24000_geo.pdf, and all pdfs from the same year are of the same scale
 
         if topoType == "htmc":
+            mscale = int(diction[year][2][0][0].split('_')[-2])   # assumption: WI_Ashland East_500066_1964_24000_geo.pdf, and all pdfs from the same year are of the same scale
             tifdir = cfg.tifdir_h
+            
             if len(diction.keys()) > 1:             # year
                 topolyrfile = cfg.topolyrfile_b
             else:
                 topolyrfile = cfg.topolyrfile_none
-        elif topoType == "topo":
+        elif topoType == str("topo"):
             tifdir = cfg.tifdir_c
             if len(diction.keys()) > 1:             # year
                 topolyrfile = cfg.topolyrfile_w
@@ -1038,7 +1037,7 @@ class topo_us_rpt(object):
             desc = arcpy.Describe(tempfeat)
 
             metaitem = {}
-            metaitem['type'] = 'topo' + seriesText.replace("15", "150")
+            metaitem['type'] = str('topo' + seriesText.replace("15", "150"))
             metaitem['imagename'] = imagename
             metaitem['lat_sw'] = desc.extent.YMin
             metaitem['long_sw'] = desc.extent.XMin
