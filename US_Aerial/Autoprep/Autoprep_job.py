@@ -210,7 +210,7 @@ def export_reportimage(imagepath,ordergeometry,auid):
         elif image_collection != 'DOQQ':
             df.extent = image_extent
             df.scale = ((df.scale/100))*85 #very important setting as it defines how much of the image will be displayed to FE
-            w_res=10200
+            w_res=7140
             h_res= int((image_extent.height/image_extent.width)*w_res)
             #if image_extent.width < 0 and image_extent.height < 0:
                 #w_res=int((image_extent.width*1000)*3)
@@ -251,8 +251,13 @@ def export_reportimage(imagepath,ordergeometry,auid):
         SW_corner= str(extent.XMin) + ',' +str(extent.YMin)
         SE_corner= str(extent.XMax) + ',' +str(extent.YMin)
         print NW_corner, NE_corner, SW_corner, SE_corner
+        clip_size = os.path.getsize(os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'))
+        if clip_size <= 3000000:
+            clip_flag = 'Y'
+        else:
+            clip_flag = 'N'
         try:
-            image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passclipextent'], "ORDER_NUM" : OrderNumText,"AUI_ID":auid,"SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax)})
+            image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passclipextent'], "ORDER_NUM" : OrderNumText,"AUI_ID":auid,"SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"INVALID_CLIPIMG_FLAG":clip_flag})
             message_return = Oracle('test').call_erisapi(image_extents)
             if message_return[3] != 'Y':
                 raise OracleBadReturn
