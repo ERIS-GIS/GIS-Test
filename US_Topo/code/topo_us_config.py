@@ -39,8 +39,8 @@ def server_loc_config(configpath,environment):
 
 # arcpy parameters
 OrderIDText = arcpy.GetParameterAsText(0)
-yesBoundary = (arcpy.GetParameterAsText(1)).lower()
-BufsizeText = arcpy.GetParameterAsText(2)
+BufsizeText = arcpy.GetParameterAsText(1)
+yesBoundary = (arcpy.GetParameterAsText(2)).lower()
 multipage = arcpy.GetParameterAsText(3)
 gridsize = arcpy.GetParameterAsText(4)
 scratch = arcpy.env.scratchFolder
