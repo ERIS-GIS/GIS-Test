@@ -16,17 +16,14 @@ import models
 def server_loc_config(configpath,environment):
     configParser = ConfigParser.RawConfigParser()
     configParser.read(configpath)
-    if environment == 'test':
-        dbconnection = configParser.get('server-config','dbconnection_test')
-        reportcheck = configParser.get('server-config','reportcheck_test')
-        reportviewer = configParser.get('server-config','reportviewer_test')
-        reportinstant = configParser.get('server-config','instant_test')
-        reportnoninstant = configParser.get('server-config','noninstant_test')
-        upload_viewer = configParser.get('url-config','uploadviewer_test')
-        server_config = {'dbconnection':dbconnection,'reportcheck':reportcheck,'viewer':reportviewer,'instant':reportinstant,'noninstant':reportnoninstant,'viewer_upload':upload_viewer}
-        return server_config
-    else:
-        return 'invalid server configuration'
+    dbconnection = configParser.get('server-config','dbconnection_%s'%environment)
+    reportcheck = configParser.get('server-config','reportcheck_%s'%environment)
+    reportviewer = configParser.get('server-config','reportviewer_%s'%environment)
+    reportinstant = configParser.get('server-config','instant_%s'%environment)
+    reportnoninstant = configParser.get('server-config','noninstant_%s'%environment)
+    upload_viewer = configParser.get('url-config','uploadviewer_%s'%environment)
+    server_config = {'dbconnection':dbconnection,'reportcheck':reportcheck,'viewer':reportviewer,'instant':reportinstant,'noninstant':reportnoninstant,'viewer_upload':upload_viewer}
+    return server_config
 
 # def createScratch():
 #     scratch = os.path.join(r"\\cabcvan1gis005\MISC_DataManagement\_AW\TOPO_US_SCRATCHY", "test1")
@@ -76,7 +73,7 @@ server_config = server_loc_config(server_config_file,server_environment)
 reportcheckFolder = server_config["reportcheck"]
 viewerFolder = server_config["viewer"]
 topouploadurl =  server_config["viewer_upload"] + r"/TopoUpload?ordernumber="
-connectionString = server_config["dbconnection"] #con.connection_string #'eris_gis/gis295@cabcvan1ora006.glaciermedia.inc:1521/GMTESTC'
+connectionString = server_config["dbconnection"]
 
 # folders
 connectionPath = os.path.join(serverpath, r"GISData\Topo_USA")
@@ -120,5 +117,5 @@ summarypage = os.path.join(mxdpath, "coverPic", "ERIS_2018_ReportCover_Second Pa
 
 # other
 logfile = os.path.join(connectionPath, r"log\USTopoSearch_Log.txt")
-logname = "TOPO_US_test"
+logname = "TOPO_US_%s"%server_environment
 readmefile = os.path.join(mxdpath,"readme.txt")
