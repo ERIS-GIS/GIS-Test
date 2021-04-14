@@ -147,6 +147,14 @@ class OracleBadReturn(Exception):
     pass
 class NoAvailableImage(Exception):
     pass
+def set_raster_background(input_raster,remove_color):
+    desc = arcpy.Describe(input_raster)
+    if remove_color == 'black':
+        for i in range(desc.bandCount):
+            arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 0')
+    elif remove_color == 'white':
+        for i in range(desc.bandCount):
+            arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 255')
 def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef = arcpy.SpatialReference(4326)):
     outputSHP = os.path.join(output_folder,output_name)
     if geometry_type.lower()== 'point':
@@ -176,6 +184,8 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         auid = imagedict[order_value][0]
         image_source = imagedict[order_value][1]
         imagepath = imagedict[order_value][2]
+        arcpy.SetRasterProperties_management(imagepath,data_type = 'PROCESSED')
+        set_raster_background(imagepath,'white')
         img_sr = arcpy.Describe(imagepath).spatialReference
         print img_sr.name
         if img_sr.name == 'Unknown' or img_sr.name == 'GCS_Unknown':
@@ -206,8 +216,6 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         export_height = 6600
     arcpy.RefreshActiveView()
     arcpy.overwriteOutput = True
-    sr2 = arcpy.SpatialReference(4326)
-    ## NEED TO EXPORT DF EXTENT TO ORACLE HERE
     scale = df.scale
     if scale == 6000:
         scaletxt = '1":' + str(int(scale/12))+"'"
@@ -223,6 +231,86 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
     arcpy.env.pyramid = "NONE"
     arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 80)
     arcpy.DefineProjection_management(os.path.join(job_fin,report_image_name),sr)
+    wgs84mxd = arcpy.mapping.MapDocument(wgs84_template)
+    image_report = arcpy.mapping.Layer(os.path.join(job_fin,report_image_name))
+    df = arcpy.mapping.ListDataFrames(wgs84mxd,'*')[0]
+    arcpy.mapping.AddLayer(df,image_report,'TOP')
+    imagetodesc = arcpy.mapping.ListLayers(wgs84mxd,'*',df)[0]
+    extent =arcpy.Describe(imagetodesc).extent
+    centerlong = round(extent.XMin + (extent.XMax - extent.XMin)/2, 7)
+    centerlat = round(extent.YMin + (extent.YMax - extent.YMin)/2, 7)
+    try:
+        image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passreportextent'], "ORDER_NUM" : OrderNumText,"TYPE":"ae_pdf",
+        "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"FILENAME":str(report_image_name),
+        "CENTERLAT" : str(centerlat), "CENTERLONG":str(centerlong), "IMAGE_WIDTH":"","IMAGE_HEIGHT":""})
+        message_return = Oracle('test').call_erisapi(image_extents)
+        if message_return[3] != 'Y':
+            raise OracleBadReturn
+    except OracleBadReturn:
+        arcpy.AddError('status: '+message_return[3]+' - '+message_return[2])
+    for lyr in arcpy.mapping.ListLayers(mxd, "", df):
+        arcpy.mapping.RemoveLayer(df,lyr)
+    del mxd
+def export_geotiff(imagedict,ordergeometry,image_comment):
+    arcpy.AddMessage("Adding to template: "+str(imagedict))
+    mxd = arcpy.mapping.MapDocument(mxdexport_template)
+    df = arcpy.mapping.ListDataFrames(mxd,'*')[0]
+    geo_lyr = arcpy.mapping.Layer(ordergeometry)
+    arcpy.mapping.AddLayer(df,geo_lyr,'TOP')
+    ordered_all_values = imagedict.keys()
+    ordered_all_values.sort()
+    print ordered_all_values
+    for order_value in ordered_all_values:
+        auid = imagedict[order_value][0]
+        image_source = imagedict[order_value][1]
+        imagepath = imagedict[order_value][2]
+        arcpy.SetRasterProperties_management(imagepath,data_type = 'PROCESSED')
+        set_raster_background(imagepath,'white')
+        img_sr = arcpy.Describe(imagepath).spatialReference
+        print img_sr.name
+        if img_sr.name == 'Unknown' or img_sr.name == 'GCS_Unknown':
+            arcpy.DefineProjection_management(imagepath,4326)
+        lyrpath = os.path.join(scratch,str(auid) + '.lyr')
+        arcpy.MakeRasterLayer_management(imagepath,lyrpath)
+        image_lyr = arcpy.mapping.Layer(lyrpath)
+        arcpy.mapping.AddLayer(df,image_lyr,'TOP')
+    sr = arcpy.SpatialReference(4326)
+    df.spatialReference = sr
+    geometry_layer = arcpy.mapping.ListLayers(mxd,'OrderGeometry',df)[0]
+    geometry_layer.visible = False
+    geo_extent = geometry_layer.getExtent(True)
+    df.extent = geo_extent
+    MapScale = 6000
+    if UserMapScale is not None:
+        df.scale = UserMapScale
+        MapScale = UserMapScale
+        export_width = 5100
+        export_height = 6600
+    elif df.scale <= MapScale and UserMapScale is None:
+        df.scale = MapScale
+        export_width = 5100
+        export_height = 6600
+    elif df.scale > MapScale and UserMapScale is None:
+        df.scale = ((int(df.scale)/100)+1)*100
+        export_width = 5100
+        export_height = 6600
+    arcpy.RefreshActiveView()
+    arcpy.overwriteOutput = True
+    scale = df.scale
+    if scale == 6000:
+        scaletxt = '1":' + str(int(scale/12))+"'"
+        filescale = str(int(scale/12))
+    else:
+        scaletxt = '1":' + str(int(round(scale/12,-2)))+"'"
+        filescale = str(int(round(scale/12,-2)))
+    if image_comment != "":
+        report_image_name = image_year + '_' + image_source  + '_'+filescale +'_'+image_comment+'.tif'
+    else:
+        report_image_name = image_year + '_' + image_source  + '_'+filescale +'.tif'
+    arcpy.AddMessage("Exporting: "+report_image_name)
+    arcpy.env.pyramid = "NONE"
+    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=True,color_mode = '24-BIT_TRUE_COLOR', tiff_compression='LZW',geoTIFF_tags=True)
+    arcpy.DefineProjection_management(os.path.join(job_fin,report_image_name),sr)
     print "projecting"
     wgs84mxd = arcpy.mapping.MapDocument(wgs84_template)
     image_report = arcpy.mapping.Layer(os.path.join(job_fin,report_image_name))
@@ -230,16 +318,8 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
     arcpy.mapping.AddLayer(df,image_report,'TOP')
     imagetodesc = arcpy.mapping.ListLayers(wgs84mxd,'*',df)[0]
     extent =arcpy.Describe(imagetodesc).extent
-    print "done projecting" 
-    NW_corner= str(extent.XMin) + ',' +str(extent.YMax)
-    NE_corner= str(extent.XMax) + ',' +str(extent.YMax)
-    SW_corner= str(extent.XMin) + ',' +str(extent.YMin)
-    SE_corner= str(extent.XMax) + ',' +str(extent.YMin)
-    print NW_corner, NE_corner, SW_corner, SE_corner
     centerlong = round(extent.XMin + (extent.XMax - extent.XMin)/2, 7)
     centerlat = round(extent.YMin + (extent.YMax - extent.YMin)/2, 7)
-    print "centerlat: "+ str(centerlat)
-    print "centerlong: "+ str(centerlong)
     try:
         image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passreportextent'], "ORDER_NUM" : OrderNumText,"TYPE":"ae_pdf",
         "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"FILENAME":str(report_image_name),
@@ -253,12 +333,74 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         arcpy.mapping.RemoveLayer(df,lyr)
     del mxd
 
+def export_frame(imagedict,ordergeometry):
+    for image_year in imagedict.keys():
+        image_per_year = 0
+        for image in imagedict[image_year]:
+            image_source = image['IMAGE_SOURCE']
+            image_collection = image['IMAGE_COLLECTION_TYPE']
+            auid = str(image['AUI_ID'])
+            imagepath = image['ORIGINAL_IMAGE_PATH']
+            image_per_year += 1
+            sr = arcpy.SpatialReference(4326)
+            if image_collection == 'DOQQ':
+                arcpy.overwriteOutput = True
+                mxd = arcpy.mapping.MapDocument(mxdexport_template)
+                df = arcpy.mapping.ListDataFrames(mxd,'*')[0]
+                df.SpatialReference = sr
+                lyrpath = os.path.join(scratch,str(auid) + '.lyr')
+                arcpy.MakeRasterLayer_management(imagepath,lyrpath)
+                image_lyr = arcpy.mapping.Layer(lyrpath)
+                geo_lyr = arcpy.mapping.Layer(ordergeometry)
+                arcpy.mapping.AddLayer(df,geo_lyr,'TOP')
+                arcpy.mapping.AddLayer(df,image_lyr,'TOP')
+                image_layer = arcpy.mapping.ListLayers(mxd,"",df)[0]
+                geometry_layer = arcpy.mapping.ListLayers(mxd,'OrderGeometry',df)[0]
+                geometry_layer.visible = False
+                image_extent = image_layer.getExtent()
+                geo_extent = geometry_layer.getExtent()
+                df.extent = geo_extent
+                print df.scale
+                df.extent = geo_extent
+                if df.scale < 6000:
+                    df.scale = 6000
+                print df.scale
+                df.scale = ((df.scale/100)+1)*100 #very important setting as it defines how much of the image will be displayed to FE
+                w_res=7140
+                h_res= int((geo_extent.height/geo_extent.width)*w_res)
+                arcpy.RefreshActiveView()
+                desc = arcpy.Describe(lyrpath)
+                bandcount = desc.bandcount
+                arcpy.env.pyramid = "NONE"
+                #arcpy.Clip_management(imagepath,'%s %s %s %s'%(geo_extent.XMin,geo_extent.YMin,geo_extent.YMax,geo_extent.XMax),os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'), maintain_clipping_extent = 'NO_MAINTAIN_EXTENT')
+                #arcpy.ProjectRaster_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '2.tif'),sr,'BILINEAR')
+                if bandcount == 1:
+                    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE',tiff_compression = 'NONE')
+                else:
+                    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR',tiff_compression = 'NONE')
+                arcpy.DefineProjection_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),sr)
+                mxd.saveACopy(os.path.join(scratch,auid+'_export.mxd'))
+                del mxd
+            else:
+                arcpy.env.pyramid = "NONE"
+                img_sr = arcpy.Describe(imagepath).spatialReference
+                arcpy.overwriteOutput = True
+                if img_sr.name == 'Unknown' or img_sr.name == 'GCS_Unknown':
+                    arcpy.DefineProjection_management(imagepath,4326)
+                    arcpy.CopyRaster_management(imagepath,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),background_value = 0,nodata_value = 0,transform = True)
+                else:
+                    arcpy.ProjectRaster_management(imagepath,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),4326,'CUBIC')
+                arcpy.DefineProjection_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),sr)
+                set_raster_background(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),'black')
+
+        
 
 if __name__ == '__main__':
     start = timeit.default_timer()
-    orderID = arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
-    UserMapScale = arcpy.GetParameterAsText(1)
-    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\test4'#arcpy.env.scratchFolder
+    orderID = '1058277'#arcpy.GetParameterAsText(0)#'1058277'#arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
+    ImageType = 'frames'#arcpy.GetParameterAsText(1)#'geotiff'#pdf,geotiff,frame arcpy.GetParameterAsText(1)
+    UserMapScale = ''#arcpy.GetParameterAsText(2)
+    scratch = r'C:\Users\JLoucks\Documents\JL\test4'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_new.mxd'
     wgs84_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\wgs84_template.mxd'
@@ -299,24 +441,26 @@ if __name__ == '__main__':
     os.mkdir(job_fin)
 
     ##get image matrix and export
-    for image_year in selected_list_json['RESULTS'].keys():
-        getimage_dict = {}
-        image_comment = None
-        for image in selected_list_json['RESULTS'][image_year]:
-            print image
-            print '------------'
-            order_key = image['REPORT_DISPLAY_ORDER']
-            image_auid = image['AUI_ID']
-            image_source = image['IMAGE_SOURCE']
-            image_path = image['ORIGINAL_IMAGE_PATH']
-            if image['COMMENTS'] != "":
-                image_comment = image['COMMENTS']
-            getimage_dict[order_key] = [image_auid,image_source,image_path]
-        if image_comment == None:
-            image_comment = ""
-        print image_comment
-        export_reportimage(getimage_dict,OrderGeometry,image_comment)
-
+    if ImageType == 'frames':
+        export_frame(selected_list_json['RESULTS'],OrderGeometry)
+    else:
+        for image_year in selected_list_json['RESULTS'].keys():
+            getimage_dict = {}
+            image_comment = None
+            for image in selected_list_json['RESULTS'][image_year]:
+                order_key = image['REPORT_DISPLAY_ORDER']
+                image_auid = image['AUI_ID']
+                image_source = image['IMAGE_SOURCE']
+                image_path = image['ORIGINAL_IMAGE_PATH']
+                if image['COMMENTS'] != "":
+                    image_comment = image['COMMENTS']
+                getimage_dict[order_key] = [image_auid,image_source,image_path]
+            if image_comment == None:
+                image_comment = ""
+            if ImageType == 'pdf':
+                export_reportimage(getimage_dict,OrderGeometry,image_comment)
+            elif ImageType == 'geotiff':
+                export_geotiff(getimage_dict,OrderGeometry,image_comment)
 
 
 

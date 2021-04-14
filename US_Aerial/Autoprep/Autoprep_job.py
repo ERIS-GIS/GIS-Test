@@ -164,6 +164,25 @@ def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef
         cursor.insertRow([arcpy.Polygon(arcpy.Array([arcpy.Point(*coords) for coords in pntCoords]),spatialRef)])
     del cursor
     return outputSHP
+def getclipflag(collectiontype,mxd,df,geo_extent,jpg_image):
+    if image_collection != 'DOQQ':
+        df.extent = geo_extent
+        df.scale = 25000
+        w_res = 1275
+        h_res = 1650
+        arcpy.RefreshActiveView()
+        arcpy.mapping.ExportToJPEG(mxd,os.path.join(scratch,jpg_image),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE', jpeg_quality = 70)
+        clip_size = os.path.getsize(os.path.join(scratch,jpg_image))
+        if clip_size <= 300000:
+            return 'Y'
+        else:
+            return 'N'
+    else:
+        clip_size = os.path.getsize(os.path.join(jpg_image_folder,jpg_image))
+        if clip_size <= 2000000:
+            return 'Y'
+        else:
+            return 'N'
 def export_reportimage(imagepath,ordergeometry,auid):
     ## In memory
     if os.path.exists(imagepath) == False:
@@ -173,6 +192,7 @@ def export_reportimage(imagepath,ordergeometry,auid):
         df = arcpy.mapping.ListDataFrames(mxd,'*')[0]
         sr = arcpy.SpatialReference(4326)
         df.SpatialReference = sr
+        arcpy.SetRasterProperties_management(imagepath,data_type = 'PROCESSED')
         lyrpath = os.path.join(scratch,str(auid) + '.lyr')
         arcpy.MakeRasterLayer_management(imagepath,lyrpath)
         image_lyr = arcpy.mapping.Layer(lyrpath)
@@ -185,77 +205,39 @@ def export_reportimage(imagepath,ordergeometry,auid):
         image_extent = image_layer.getExtent()
         geo_extent = geometry_layer.getExtent()
         df.extent = geo_extent
-        print df.scale
-        """if df.scale <= 7500 or image_source == 'DOQQ':
-            if df.scale <= 7500 or image_source != 'DOQQ':
-                df.extent = geo_extent
-                df.scale = MapScale
-                w_res = 2550
-                h_res = 3300
-            elif image_source == 'DOQQ' and df.scale > 7500:
-                df.extent = geo_extent
-                df.scale = ((df.scale/100)+1)*100
-                w_res = 2550
-                h_res = 3300
-        elif df.scale > 7500 and image_source != 'DOQQ':
-            df.extent = image_extent
-            df.scale = df.scale*0.91 #very important setting as it defines how much of the image will be displayed to FE
-            w_res=2550
-            h_res= int((image_extent.height/image_extent.width)*w_res)"""
         if image_collection == 'DOQQ':
-            df.extent = geo_extent
-            df.scale = ((df.scale/100)+1)*400
-            w_res = 5100
-            h_res = 6600
+            if df.scale > 25000:
+                df.extent = geo_extent
+                df.scale = df.scale * 1.0
+                w_res = 7140
+                h_res= int((geo_extent.height/geo_extent.width)*w_res)
+            else:
+                df.scale = 25000
+                w_res = 5100
+                h_res = 6600
         elif image_collection != 'DOQQ':
             df.extent = image_extent
             df.scale = ((df.scale/100))*85 #very important setting as it defines how much of the image will be displayed to FE
             w_res=7140
             h_res= int((image_extent.height/image_extent.width)*w_res)
-            #if image_extent.width < 0 and image_extent.height < 0:
-                #w_res=int((image_extent.width*1000)*3)
-                #h_res=int((image_extent.height*1000)*3)
-            #elif image_extent.width > 1000 and image_extent.height > 1000:
-                #w_res=int((image_extent.width/1000)*3)
-                #h_res=int((image_extent.height/1000)*3)
-            #else:
-                #w_res = 5100
-                #h_res = 5100
-        ###############################
-        ## NEED TO EXPORT DF EXTENT TO ORACLE HERE
-        #sr = arcpy.SpatialReference(3857)
-        #df.SpatialReference = sr
-        #mxd.save()
         print image_extent.width, image_extent.height
         print w_res, h_res
         arcpy.RefreshActiveView()
         arcpy.overwriteOutput = True
         sr2 = arcpy.SpatialReference(4326)
-        #decribe # of bands for raster to determine output
         desc = arcpy.Describe(lyrpath)
         bandcount = desc.bandcount
+        jpg_image = image_year + '_' + image_source + '_' +auid + '.jpg'
         if bandcount == 1:
-            arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE', jpeg_quality = 70)
+            arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,jpg_image),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE', jpeg_quality = 70)
         else:
-            arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 70)
-        arcpy.DefineProjection_management(os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),sr2)
-        #arcpy.env.compression = "JPEG 1"
-        #arcpy.env.pyramid = "NONE"
-        #print "projecting"
-        #arcpy.ProjectRaster_management(os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'),os.path.join(scratch,image_year + '_' + image_source + '_' +auid + '_2.jpg'),sr)
-        #extent =arcpy.Describe(os.path.join(scratch,image_year + '_' + image_source + '_' +auid + '_2.jpg')).extent
-        extent =arcpy.Describe(os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg')).extent
-        print "done projecting"
-        NW_corner= str(extent.XMin) + ',' +str(extent.YMin)
-        NE_corner= str(extent.XMax) + ',' +str(extent.YMax)
-        SW_corner= str(extent.XMin) + ',' +str(extent.YMin)
-        SE_corner= str(extent.XMax) + ',' +str(extent.YMin)
-        print NW_corner, NE_corner, SW_corner, SE_corner
-        clip_size = os.path.getsize(os.path.join(jpg_image_folder,image_year + '_' + image_source + '_' +auid + '.jpg'))
-        if clip_size <= 3000000:
+            arcpy.mapping.ExportToJPEG(mxd,os.path.join(jpg_image_folder,jpg_image),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 70)
+        arcpy.DefineProjection_management(os.path.join(jpg_image_folder,jpg_image),sr2)
+        extent =arcpy.Describe(os.path.join(jpg_image_folder,jpg_image)).extent
+        if AUI_ID == '':
+            clip_flag = getclipflag(image_collection,mxd,df,geo_extent,jpg_image)
+        else:
             clip_flag = 'Y'
-        else:
-            clip_flag = 'N'
         try:
             image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passclipextent'], "ORDER_NUM" : OrderNumText,"AUI_ID":auid,"SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"INVALID_CLIPIMG_FLAG":clip_flag})
             message_return = Oracle('test').call_erisapi(image_extents)
@@ -263,19 +245,15 @@ def export_reportimage(imagepath,ordergeometry,auid):
                 raise OracleBadReturn
         except OracleBadReturn:
             arcpy.AddError('status: '+message_return[3]+' - '+message_return[2])
-        ##############################
-        #arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_folder,'year'+'_source'+auid + '.jpg'),df,df_export_width=5100,df_export_height=6600,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 50)
-        #arcpy.DefineProjection_management(os.path.join(job_folder,'year'+'_source'+auid + '.jpg'), 3857)
-        #shutil.copy(os.path.join(job_folder,'year'+'_source'+auid + '.jpg'),os.path.join(jpg_image_folder,auid + '.jpg'))
         mxd.saveACopy(os.path.join(scratch,auid+'_export.mxd'))
         del mxd
 
 
 if __name__ == '__main__':
     start = timeit.default_timer()
-    orderID = '968770'#arcpy.GetParameterAsText(0)#'934465'#arcpy.GetParameterAsText(0)
-    AUI_ID = '7424603'#arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)
-    scratch = r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder
+    orderID = arcpy.GetParameterAsText(0)#'1058321'#arcpy.GetParameterAsText(0)
+    AUI_ID = arcpy.GetParameterAsText(1)#''#arcpy.GetParameterAsText(1)
+    scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\psr2'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export.mxd'
     conversion_input = r'\\192.168.136.164\v2_usaerial\input'
@@ -356,7 +334,7 @@ if __name__ == '__main__':
                     image_year = str(inhouse_image['AERIAL_YEAR'])
                     image_source = inhouse_image['IMAGE_SOURCE']
                     image_collection = inhouse_image['IMAGE_COLLECTION_TYPE']
-                    selected_flag = inhouse_image['GIS_SELECTED_FLAG]
+                    selected_flag = inhouse_image['GIS_SELECTED_FLAG']
                     if image_source == '':
                         image_source = ''
                     if selected_flag == 'Y':
@@ -365,7 +343,6 @@ if __name__ == '__main__':
                 arcpy.AddError('JSON missing key: ' + k.message)
         except NoAvailableImage:
             arcpy.AddError('No available images for location')
-            sys.exit()
     else:
         AUI_IDtext = str(AUI_ID)
         oracle_singleprep = str({"PROCEDURE":Oracle.erisapi_procedures['getaeriallist'],"ORDER_NUM":OrderNumText,"AUI_ID":AUI_IDtext})
@@ -378,7 +355,6 @@ if __name__ == '__main__':
 
         if os.path.exists(job_folder) == False:
             arcpy.AddError('Job Folder does not exist - Reinitialize order')
-            sys.exit()
 
         org_image_folder = os.path.join(job_folder,'org')
         jpg_image_folder = os.path.join(job_folder,'jpg')
