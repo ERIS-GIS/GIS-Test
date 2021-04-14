@@ -26,7 +26,7 @@ def server_loc_config(configpath,environment):
     return server_config
 
 # def createScratch():
-#     scratch = os.path.join(r"\\cabcvan1gis005\MISC_DataManagement\_AW\TOPO_US_SCRATCHY", "test1")
+#     scratch = os.path.join(r"\\cabcvan1gis005\MISC_DataManagement\_AW\TOPO_US_SCRATCHY", "test2")
 #     scratchgdb = "scratch.gdb"
 #     if not os.path.exists(scratch):
 #         os.mkdir(scratch)
@@ -47,8 +47,8 @@ scratchgdb = arcpy.env.scratchGDB
 order_obj = models.Order().get_order(OrderIDText)
 
 # # flags
-# multipage = "Y"                     # Y/N, for multipages
-# gridsize =  0 # "3 KiloMeters"           # for multipage grid
+# multipage = "N"                     # Y/N, for multipages
+# gridsize =  "3 KiloMeters"           # for multipage grid
 # yesBoundary = "yes"                 # fixed/yes/no
 # BufsizeText = "2.4"
 # delyearFlag = "N"                   # Y/N, for internal use only, blank maps, etc.
@@ -104,9 +104,9 @@ gridlyr = os.path.join(mxdpath,"grid.lyr")
 # pdfs
 annot_poly = os.path.join(mxdpath,"annot_poly.pdf")
 annot_line = os.path.join(mxdpath,"annot_line.pdf")
+annot_point = os.path.join(mxdpath,"annot_point.pdf")
 annot_poly_c = os.path.join(mxdpath,"annot_poly_red.pdf")
 annot_line_c = os.path.join(mxdpath,"annot_line_red.pdf")
-pdfsymbolfile = os.path.join(mxdpath, "US Topo Map Symbols v7.4.pdf")
 
 # logos
 logopath = os.path.join(mxdpath,"logos")

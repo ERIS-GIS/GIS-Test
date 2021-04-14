@@ -191,7 +191,7 @@ class topo_us_rpt(object):
         canvas.linkURL(r"https://pubs.usgs.gov/unnumbered/70039569/report.pdf", (60,247,220,257), thickness=0, relative=1)
         canvas.linkURL(r"https://pubs.usgs.gov/bul/0788e/report.pdf", (60,237,220,247), thickness=0, relative=1)
         canvas.linkURL(r"https://pubs.usgs.gov/gip/TopographicMapSymbols/topomapsymbols.pdf", (60,217,220,227), thickness=0, relative=1)
-        canvas.linkURL(r"US Topo Map Symbols.pdf", (60,197,280,207), thickness=0, relative=1)
+        canvas.linkURL(r"https://erisservice.ecologeris.com/ErisExt/kmls/US_Topo_Map_Symbols.pdf", (60,197,280,207), thickness=0, relative=1)
 
         canvas.setFont('Helvetica-Bold', 8)
         canvas.drawString(54, 270, "Topographic Map Symbology for the maps may be available in the following documents:")
@@ -215,7 +215,7 @@ class topo_us_rpt(object):
         canvas.drawString(54, 250, "    Page 223 of 1918 Topographic Instructions")
         canvas.drawString(54, 240, "    Page 130 of 1928 Topographic Instructions")
         canvas.drawString(54, 220, "    Topographic Map Symbols")
-        canvas.drawString(54, 200, "    US Topo Map Symbols (see attached document in this report)")
+        canvas.drawString(54, 200, "    US Topo Map Symbols")
         
         canvas.restoreState()
         style = None
@@ -410,7 +410,7 @@ class topo_us_rpt(object):
             mxd.saveACopy(os.path.join(cfg.scratch, seriesText + "_" + year + ".mxd"))
 
             # merge annotation pdf to the map if yesBoundary == Y
-            if yesboundary == 'yes' and self.order_obj.geometry.type.lower() != 'point' and self.order_obj.geometry.type.lower() != 'multipoint':
+            if yesboundary == 'yes':
                 self.annotatePdf(outputpdf, cfg.annotPdf)
 
             for lyr in arcpy.mapping.ListLayers(mxd, "", df):
@@ -646,12 +646,9 @@ class topo_us_rpt(object):
                     self.createAnnotPdf(cfg.shapePdf)                   # creates annot.pdf
 
                 elif self.order_obj.geometry.type.lower() == "point" or self.order_obj.geometry.type.lower() == "multipoint":
-                    yesboundary = 'fixed'
+                    shutil.copy(cfg.annot_point, os.path.join(cfg.scratch, "annot.pdf"))
                     for lyr in arcpy.mapping.ListLayers(mxd, "", df):
-                        if lyr.name == "Project Property":
-                            lyr.visible = True
-                        else:
-                            lyr.visible = False
+                        lyr.visible = False
 
         elif yesboundary.lower() == 'no':
             for lyr in arcpy.mapping.ListLayers(mxd, "", df):
@@ -687,6 +684,9 @@ class topo_us_rpt(object):
             for row in reader:                                              # grab main topo records
                 if row["Cell ID"] in rowsMain:
                     pdfname = row["Filename"].strip()
+                    if not os.path.exists(os.path.join(cfg.tifdir_h, pdfname.replace(".pdf", "_t.tif"))):
+                        continue
+
                     xmlname = pdfname[0:-3] + "xml"                         # read the year from .xml file
                     xmlpath = os.path.join(cfg.tifdir_h,xmlname)
                     tree = ET.parse(xmlpath)
@@ -713,6 +713,9 @@ class topo_us_rpt(object):
             for row in reader:              
                 if row["Cell ID"] in rowsAdj:                               # grab surrounding topo records
                     pdfname = row["Filename"].strip()
+                    if not os.path.exists(os.path.join(cfg.tifdir_h, pdfname.replace(".pdf", "_t.tif"))):
+                        continue
+
                     xmlname = pdfname[0:-3] + "xml"                         # read the year from .xml file
                     xmlpath = os.path.join(cfg.tifdir_h,xmlname)
                     tree = ET.parse(xmlpath)
@@ -742,6 +745,9 @@ class topo_us_rpt(object):
             for row in reader:
                 if row["Cell ID"] in rowsMain:
                     pdfname = row["Filename"].strip()
+                    if not os.path.exists(os.path.join(cfg.tifdir_c, pdfname.replace(".pdf", "_t.tif"))):
+                        continue
+
                     year2use = row["Filename"].split("_")[-3][:4]   # for current topos, read the year from the geopdf file name
 
                     if year2use == "" or year2use == None:
@@ -757,6 +763,9 @@ class topo_us_rpt(object):
             for row in reader:
                 if row["Cell ID"] in rowsAdj:                               # grab surrounding topo records
                     pdfname = row["Filename"].strip()
+                    if not os.path.exists(os.path.join(cfg.tifdir_c, pdfname.replace(".pdf", "_t.tif"))):
+                        continue
+                    
                     year2use = row["Filename"].split("_")[-3][:4]
 
                     if year2use == "" or year2use == None:
@@ -836,9 +845,9 @@ class topo_us_rpt(object):
             else:
                 arcpy.AddWarning("### tif file doesn't exist " + tifname)
                 if not os.path.exists(tifdir):
-                    arcpy.AddWarning("tif dir does NOT exist " + tifdir)
+                    arcpy.AddWarning("\ttif dir does NOT exist " + tifdir)
                 else:
-                    arcpy.AddWarning("tif dir does exist " + tifdir)
+                    arcpy.AddWarning("\ttif dir does exist " + tifdir)
 
             seq = seq + 1
         return quaddict
@@ -936,7 +945,7 @@ class topo_us_rpt(object):
                 
                 for year in years:
                     seriesText = d[year][1]
-                    if yesboundary == "yes" and self.order_obj.geometry.type.lower() != 'point' and self.order_obj.geometry.type.lower() != 'multipoint':
+                    if yesboundary == "yes":
                         pdf = PdfFileReader(open(os.path.join(cfg.scratch,"map_" + seriesText + "_" + year + "_a.pdf"),'rb'))
                     else:
                         pdf = PdfFileReader(open(os.path.join(cfg.scratch,"map_" + seriesText + "_" + year + ".pdf"),'rb'))

@@ -130,7 +130,7 @@ if __name__ == '__main__':
             output.addPage(summaryPages.getPage(0))
             output.addBookmark("Cover Page",0)
             output.addBookmark("Summary",1)
-            output.addAttachment("US Topo Map Symbols.pdf", open(cfg.pdfsymbolfile,"rb").read())
+            # output.addAttachment("US Topo Map Symbols.pdf", open(cfg.pdfsymbolfile,"rb").read())
             # output.addLink(1,0,[60,197,240,207],None,fit="/Fit")
 
             # append map pages   
@@ -163,11 +163,10 @@ if __name__ == '__main__':
         arcpy.AddError("hit CC's error code in except: ")
         arcpy.AddError(pymsg)
 
-        try:
-            procedure = 'eris_topo.InsertTopoAudit'
-            oc.proc(procedure, (order_obj.id, 'python-Error Handling',pymsg))
-        except Exception as e:
-            raise                                   # raise the error again
+        procedure = 'eris_topo.InsertTopoAudit'
+        oc.proc(procedure, (order_obj.id, 'python-Error Handling',pymsg))
+
+        raise                                   # raise the error again
 
     finally:
         oc.close()                              # close oracle connection
