@@ -310,7 +310,7 @@ class topo_us_word_rpt(object):
         
         siteCityState = self.order_obj.city + ", " + self.lookupstate(self.order_obj.province) + " " + str(self.order_obj.postal_code).replace("None", "")
         
-        expression = "select address1, address2, city, provstate, postal_code from customer where customer_id = (select customer_id from orders where order_id = " + self.order_obj.id + ")"
+        expression = "select address1, address2, city, provstate, postal_code from customer where customer_id = (select customer_id from orders where order_id = " + str(self.order_obj.id) + ")"
         t = self.oracle.query(expression)[0]
         if t[1] == None:
             officeAddress = str(t[0])
