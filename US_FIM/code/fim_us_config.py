@@ -26,7 +26,7 @@ def server_loc_config(configpath,environment):
     return server_config
 
 # def createScratch():
-#     scratch = os.path.join(r"W:\Data Analysts\Alison\_GIS\FIM_US_SCRATCHY", "test2")
+#     scratch = os.path.join(r'\\cabcvan1gis005\MISC_DataManagement\_AW\FIM_US_SCRATCHY', "test2")
 #     scratchgdb = "scratch.gdb"
 #     if not os.path.exists(scratch):
 #         os.mkdir(scratch)
@@ -82,7 +82,7 @@ viewerFolder = server_config["viewer"]
 uploadlink =  server_config["viewer_upload"] + r"/FIMUpload?ordernumber="
 
 # folder
-connectionPath = os.path.join(serverpath, r"GISData\FIMS_USA")
+connectionPath = os.path.join(serverpath, r"GISData\FIMS_USA_test")
 logopath = os.path.join(connectionPath, "logo")
 
 # master file/folder

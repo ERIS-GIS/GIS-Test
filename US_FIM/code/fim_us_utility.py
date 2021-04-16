@@ -78,11 +78,6 @@ class fim_us_rpt(object):
     def __init__(self,order_obj, oracle):
         self.order_obj = order_obj
         self.oracle = oracle
-    
-    def findpath(a,b):
-        a = a.upper().replace(r"\\CABCVAN1FPR009", r"W:")
-        path= lambda a,b:os.path.join(a[0:[m.start() for m in re.finditer(r'\\', a)][2]].replace(r"W:",r"\\CABCVAN1FPR009"),b)
-        return path(a,b)
 
     def createAnnotPdf(self, myShapePdf):
         # input variables
@@ -276,11 +271,8 @@ class fim_us_rpt(object):
         arcpy.AddField_management(polygonSHP, "xCentroid", "DOUBLE", 18, 11)
         arcpy.AddField_management(polygonSHP, "yCentroid", "DOUBLE", 18, 11)
 
-        xExpression = '!SHAPE.CENTROID.X!'
-        yExpression = '!SHAPE.CENTROID.Y!'
-
-        arcpy.CalculateField_management(polygonSHP, "xCentroid", xExpression, "PYTHON_9.3")
-        arcpy.CalculateField_management(polygonSHP, "yCentroid", yExpression, "PYTHON_9.3")
+        arcpy.CalculateField_management(in_table=polygonSHP, field="xCentroid", expression="!SHAPE.CENTROID.X!", expression_type="PYTHON_9.3", code_block="")
+        arcpy.CalculateField_management(in_table=polygonSHP, field="yCentroid", expression="!SHAPE.CENTROID.Y!", expression_type="PYTHON_9.3", code_block="")
 
         in_rows = arcpy.SearchCursor(polygonSHP)
         outPointFileName = "polygonCentre"
