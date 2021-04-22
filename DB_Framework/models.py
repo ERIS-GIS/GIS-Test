@@ -118,6 +118,32 @@ class Order(object):
         finally:
             cur.close()
             con.close()
+    @classmethod
+    def get_map_keys(self):
+        try:
+            map_keys = []
+            con = cx_Oracle.connect(db_connections.connection_string)
+            cursor = con.cursor()
+            # ### fetch mak_key from order_detail_new table
+            sql_statment = 'select  MAP_KEY_LOC,X,Y ' \
+                            'from order_detail_new ' \
+                            'GROUP BY ORDER_ID,MAP_KEY_LOC,X,Y ' \
+                            'having MAP_KEY_LOC is not null and order_id = ' + str(self.id) + ' order by MAP_KEY_LOC'
+            cursor.execute(sql_statment)
+            rows = cursor.fetchall()
+            for row in rows:
+                map_keys.append(row)
+            
+           
+        finally:
+            cursor.close()
+            con.close()
+            del cursor
+            del rows
+            del row
+            
+        return map_keys
+        
 class PSR(object):
     order_id = ''
     omi_id = ''
