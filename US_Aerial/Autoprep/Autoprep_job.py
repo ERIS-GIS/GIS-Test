@@ -206,20 +206,28 @@ def export_reportimage(imagepath,ordergeometry,auid):
         geo_extent = geometry_layer.getExtent()
         df.extent = geo_extent
         if image_collection == 'DOQQ':
-            if df.scale > 25000:
-                df.extent = geo_extent
-                df.scale = df.scale * 1.0
-                w_res = 7140
-                h_res= int((geo_extent.height/geo_extent.width)*w_res)
-            else:
-                df.scale = 25000
-                w_res = 5100
-                h_res = 6600
+                if df.scale > 25000:
+                    df.extent = geo_extent
+                    df.scale = df.scale * 1.0
+                    try:
+                        w_res = 7140
+                        h_res= int((geo_extent.height/geo_extent.width)*w_res)
+                    except ZeroDivisionError:
+                        w_res = 5100
+                        h_res = 6600
+                else:
+                    df.scale = 25000
+                    w_res = 5100
+                    h_res = 6600
         elif image_collection != 'DOQQ':
             df.extent = image_extent
             df.scale = ((df.scale/100))*85 #very important setting as it defines how much of the image will be displayed to FE
-            w_res=7140
-            h_res= int((image_extent.height/image_extent.width)*w_res)
+            try:
+                w_res=7140
+                h_res= int((image_extent.height/image_extent.width)*w_res)
+            except ZeroDivisionError:
+                w_res = 5100
+                h_res = 6600
         print image_extent.width, image_extent.height
         print w_res, h_res
         arcpy.RefreshActiveView()
