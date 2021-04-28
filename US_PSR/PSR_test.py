@@ -1983,7 +1983,7 @@ try:
         df_wells.extent = gridLayer.getExtent()
         df_wells.scale = df_wells.scale * 1.1
         mxd_wells.saveACopy(os.path.join(scratchfolder, "mxd_wells.mxd"))
-        arcpy.mapping.ExportToJPEG(mxd_wells, outputjpg_wells, "PAGE_LAYOUT", 480, 640, 150, "False", "24-BIT_TRUE_COLOR", 85)
+        arcpy.mapping.ExportToJPEG(mxd_wells, outputjpg_wells, "PAGE_LAYOUT", 480, 640, 180, "False", "24-BIT_TRUE_COLOR", 85)
         if not os.path.exists(os.path.join(report_path, 'PSRmaps', OrderNumText)):
             os.mkdir(os.path.join(report_path, 'PSRmaps', OrderNumText))
         shutil.copy(outputjpg_wells, os.path.join(report_path, 'PSRmaps', OrderNumText))
