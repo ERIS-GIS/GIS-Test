@@ -234,6 +234,17 @@ def zipdir_noroot(path, zipfilename):
             myZipFile.write(os.path.join(root, afile), arcname)
     myZipFile.close()
 
+def get_sourcename(source_acronym):
+    try:
+        con = cx_Oracle.connect(connectionString)
+        cur = con.cursor()
+
+        cur.execute("select fullname from aerial_source where source = '%s'"%(source_acronym))
+        t = cur.fetchone()
+        source_fullname = str(t[0])
+        return source_fullname
+    except Exception as e:
+        print e.message
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -335,9 +346,9 @@ Covermxdfile = os.path.join(connectionPath, r'mxd\CoverPage.mxd')
 coverTemplate = r'\\cabcvan1gis006\GISData\Aerial_US_Word\python\templates\CoverPage'
 summaryTemplate = r'\\cabcvan1gis006\GISData\\Aerial_US_Word\python\templates\SummaryPage'
 
-OrderIDText = arcpy.GetParameterAsText(0)
-yesBoundary = arcpy.GetParameterAsText(1)
-scratch = arcpy.env.scratchWorkspace
+OrderIDText = '1058505'#arcpy.GetParameterAsText(0)
+yesBoundary = 'yes'#arcpy.GetParameterAsText(1)
+scratch = r'C:\Users\JLoucks\Documents\JL\test4'#arcpy.env.scratchWorkspace
 custom_profile = False
 
 #OrderIDText = '934292'
@@ -516,7 +527,7 @@ try:
         j=j+1
         i=str(j)
         year = item[1]
-        source = item[2]
+        source = get_sourcename(item[2])
         if item[3] == 6000:
             scale = '1":' + str(item[3]/12)+"'"
         else:
@@ -546,7 +557,7 @@ try:
         shutil.copytree(summaryTemplate,os.path.join(scratch,'tozip_summary'))
 
     coverPage = goCoverPage(coverInfotext)
-    shutil.copyfile(coverPage, os.path.join(zipCover,"word\media\image1.emf"))
+    shutil.copyfile(coverPage, os.path.join(zipCover,"word\media\image2.emf"))
     zipdir_noroot(zipCover,"cover.docx")
     shutil.copyfile(summaryEmf, os.path.join(zipSummary,"word\media\image2.emf"))
     zipdir_noroot(zipSummary,"summary.docx")
