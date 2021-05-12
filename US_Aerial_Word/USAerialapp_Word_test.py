@@ -87,7 +87,7 @@ def createWORD(app):
             continue
         year = item.split('.')[0].split('_')[0]
         source = item.split('.')[0].split('_')[1]
-        scale = 6000#int(item.split('.')[0].split('_')[2])*12
+        scale = int(item.split('.')[0].split('_')[2])*12
         if len(item.split('.')[0].split('_')) > 3:
             comment = item.split('.')[0].split('_')[3]
         else:
@@ -143,15 +143,16 @@ def createWORD(app):
                     lyr.visible = False
                 else:
                     lyr.visible = True
+                df.extent = lyr.getExtent(True)
 
-        centerlyr = arcpy.mapping.Layer(orderCenter)
+        #centerlyr = arcpy.mapping.Layer(orderCenter)
         #centerlyr = arcpy.MakeFeatureLayer_management(orderCenter, "center_lyr")
-        arcpy.mapping.AddLayer(df,centerlyr,"Top")
+        #arcpy.mapping.AddLayer(df,centerlyr,"Top")
 
 
-        center = arcpy.mapping.ListLayers(mxd, "*", df)[0]
-        df.extent = center.getSelectedExtent(False)
-        center.visible = False
+        #center = arcpy.mapping.ListLayers(mxd, "*", df)[0]
+        #df.extent = center.getSelectedExtent(False)
+        #center.visible = False
 
 
         df.scale = scale
