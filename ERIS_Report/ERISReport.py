@@ -613,7 +613,7 @@ def getWorldAerialYear((centroid_X,centroid_Y)):
     resultBing = urllib.urlopen(fsURL,params).read()
 
     if "error" not in resultBing:
-        for year in list(reversed(range(1900,2020))):
+        for year in list(reversed(range(1900,2050))):
             if str(year) in resultBing :
                 return str(year)
     else:
@@ -621,7 +621,7 @@ def getWorldAerialYear((centroid_X,centroid_Y)):
         key = False
         while tries >= 0:
             if "error" not in resultBing:
-                for year in list(reversed(range(1900,2020))):
+                for year in list(reversed(range(1900,2050))):
                     if str(year) in resultBing:
                         return str(year)
             elif tries == 0:
