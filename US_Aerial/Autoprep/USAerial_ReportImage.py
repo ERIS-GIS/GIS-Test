@@ -10,6 +10,7 @@
 
 import sys
 import arcpy
+from arcpy.sa import *
 import cx_Oracle
 import contextlib
 import json
@@ -147,7 +148,7 @@ class OracleBadReturn(Exception):
     pass
 class NoAvailableImage(Exception):
     pass
-def set_raster_background(input_raster,remove_color):
+def set_raster_background_no(input_raster,remove_color):
     desc = arcpy.Describe(input_raster)
     if remove_color == 'black':
         for i in range(desc.bandCount):
@@ -157,7 +158,13 @@ def set_raster_background(input_raster,remove_color):
             arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 255')
     elif remove_color == 'both':
         for i in range(desc.bandCount):
-            arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 255;'+ str(i+1) + ' 0') 
+            arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 255;'+ str(i+1) + ' 0')
+def set_raster_background(input_raster,min_pixel,max_pixel):
+    null_raster = os.path.join(scratch,os.path.basename(input_raster))
+    arcpy.CheckOutExtension("Spatial")
+    outSetNull = SetNull(input_raster, input_raster, "VALUE BETWEEN %s AND %s"%(min_pixel,max_pixel))
+    outSetNull.save(null_raster)
+    return null_raster
 def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef = arcpy.SpatialReference(4326)):
     outputSHP = os.path.join(output_folder,output_name)
     if geometry_type.lower()== 'point':
@@ -174,6 +181,25 @@ def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef
         cursor.insertRow([arcpy.Polygon(arcpy.Array([arcpy.Point(*coords) for coords in pntCoords]),spatialRef)])
     del cursor
     return outputSHP
+def create_clipbuffer(ordergeometry):
+    buffergeometry = os.path.join(scratch,'BufferGeometry.shp')
+    arcpy.Buffer_analysis(ordergeometry,buffergeometry,'1 Mile','FULL','FLAT')
+    return buffergeometry
+def set_imagedetail(extent,centerlat,centerlong,fin_image_name):
+    try:
+        image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passreportextent'], "ORDER_NUM" : OrderNumText,"TYPE":"ae_pdf",
+        "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"FILENAME":str(fin_image_name),
+        "CENTERLAT" : str(centerlat), "CENTERLONG":str(centerlong), "IMAGE_WIDTH":"","IMAGE_HEIGHT":""})
+        message_return = Oracle('test').call_erisapi(image_extents)
+        if message_return[3] != 'Y':
+            raise OracleBadReturn
+    except OracleBadReturn:
+        arcpy.AddError('status: '+message_return[3]+' - '+message_return[2])
+def get_shapefile(shape_path,out_path):
+    if os.path.exists(shape_path):
+        arcpy.Copy_management(shape_path,out_path)
+    else:
+        pass
 def export_reportimage(imagedict,ordergeometry,image_comment):
     arcpy.AddMessage("Adding to template: "+str(imagedict))
     mxd = arcpy.mapping.MapDocument(mxdexport_template)
@@ -188,7 +214,7 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         image_source = imagedict[order_value][1]
         imagepath = imagedict[order_value][2]
         arcpy.SetRasterProperties_management(imagepath,data_type = 'PROCESSED')
-        set_raster_background(imagepath,'white')
+        set_raster_background(imagepath,'0','188')
         img_sr = arcpy.Describe(imagepath).spatialReference
         print img_sr.name
         if img_sr.name == 'Unknown' or img_sr.name == 'GCS_Unknown':
@@ -242,15 +268,7 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
     extent =arcpy.Describe(imagetodesc).extent
     centerlong = round(extent.XMin + (extent.XMax - extent.XMin)/2, 7)
     centerlat = round(extent.YMin + (extent.YMax - extent.YMin)/2, 7)
-    try:
-        image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passreportextent'], "ORDER_NUM" : OrderNumText,"TYPE":"ae_pdf",
-        "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"FILENAME":str(report_image_name),
-        "CENTERLAT" : str(centerlat), "CENTERLONG":str(centerlong), "IMAGE_WIDTH":"","IMAGE_HEIGHT":""})
-        message_return = Oracle('test').call_erisapi(image_extents)
-        if message_return[3] != 'Y':
-            raise OracleBadReturn
-    except OracleBadReturn:
-        arcpy.AddError('status: '+message_return[3]+' - '+message_return[2])
+    set_imagedetail(extent,centerlat,centerlong,report_image_name)
     for lyr in arcpy.mapping.ListLayers(mxd, "", df):
         arcpy.mapping.RemoveLayer(df,lyr)
     del mxd
@@ -312,7 +330,7 @@ def export_geotiff(imagedict,ordergeometry,image_comment):
         report_image_name = image_year + '_' + image_source  + '_'+filescale +'.tif'
     arcpy.AddMessage("Exporting: "+report_image_name)
     arcpy.env.pyramid = "NONE"
-    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=True,color_mode = '24-BIT_TRUE_COLOR', tiff_compression='LZW',geoTIFF_tags=True)
+    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=False,color_mode = '24-BIT_TRUE_COLOR', tiff_compression='LZW',geoTIFF_tags=True)
     arcpy.DefineProjection_management(os.path.join(job_fin,report_image_name),sr)
     print "projecting"
     wgs84mxd = arcpy.mapping.MapDocument(wgs84_template)
@@ -323,20 +341,9 @@ def export_geotiff(imagedict,ordergeometry,image_comment):
     extent =arcpy.Describe(imagetodesc).extent
     centerlong = round(extent.XMin + (extent.XMax - extent.XMin)/2, 7)
     centerlat = round(extent.YMin + (extent.YMax - extent.YMin)/2, 7)
-    try:
-        image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passreportextent'], "ORDER_NUM" : OrderNumText,"TYPE":"ae_pdf",
-        "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"FILENAME":str(report_image_name),
-        "CENTERLAT" : str(centerlat), "CENTERLONG":str(centerlong), "IMAGE_WIDTH":"","IMAGE_HEIGHT":""})
-        message_return = Oracle('test').call_erisapi(image_extents)
-        if message_return[3] != 'Y':
-            raise OracleBadReturn
-    except OracleBadReturn:
-        arcpy.AddError('status: '+message_return[3]+' - '+message_return[2])
-    for lyr in arcpy.mapping.ListLayers(mxd, "", df):
-        arcpy.mapping.RemoveLayer(df,lyr)
-    del mxd
+    set_imagedetail(extent,centerlat,centerlong,report_image_name)
 
-def export_frame(imagedict,ordergeometry):
+def export_frame(imagedict,ordergeometry,buffergeometry):
     for image_year in imagedict.keys():
         image_per_year = 0
         for image in imagedict[image_year]:
@@ -346,6 +353,7 @@ def export_frame(imagedict,ordergeometry):
             imagepath = image['ORIGINAL_IMAGE_PATH']
             image_per_year += 1
             sr = arcpy.SpatialReference(4326)
+            fin_image_name = os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif')
             if image_collection == 'DOQQ':
                 arcpy.overwriteOutput = True
                 mxd = arcpy.mapping.MapDocument(mxdexport_template)
@@ -374,14 +382,17 @@ def export_frame(imagedict,ordergeometry):
                 arcpy.RefreshActiveView()
                 desc = arcpy.Describe(lyrpath)
                 bandcount = desc.bandcount
+                arcpy.env.compression = "LZW"
                 arcpy.env.pyramid = "NONE"
                 #arcpy.Clip_management(imagepath,'%s %s %s %s'%(geo_extent.XMin,geo_extent.YMin,geo_extent.YMax,geo_extent.XMax),os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'), maintain_clipping_extent = 'NO_MAINTAIN_EXTENT')
+                #arcpy.Clip_management(imagepath,'%s %s %s %s'%(geo_extent.XMin,geo_extent.YMin,geo_extent.YMax,geo_extent.XMax),os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'), maintain_clipping_extent = 'NO_MAINTAIN_EXTENT')
+                arcpy.Clip_management(imagepath,'#',fin_image_name,in_template_dataset=buffergeometry,clipping_geometry="NONE", maintain_clipping_extent = 'NO_MAINTAIN_EXTENT')
                 #arcpy.ProjectRaster_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '2.tif'),sr,'BILINEAR')
-                if bandcount == 1:
-                    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE',tiff_compression = 'NONE')
-                else:
-                    arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR',tiff_compression = 'NONE')
-                arcpy.DefineProjection_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),sr)
+                # if bandcount == 1:
+                #     arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '8-BIT_GRAYSCALE',tiff_compression = 'NONE')
+                # else:
+                #     arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),df,df_export_width=w_res,df_export_height=h_res,world_file=True,color_mode = '24-BIT_TRUE_COLOR',tiff_compression = 'NONE')
+                # arcpy.DefineProjection_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),sr)
                 mxd.saveACopy(os.path.join(scratch,auid+'_export.mxd'))
                 del mxd
             else:
@@ -390,23 +401,29 @@ def export_frame(imagedict,ordergeometry):
                 arcpy.overwriteOutput = True
                 if img_sr.name == 'Unknown' or img_sr.name == 'GCS_Unknown':
                     arcpy.DefineProjection_management(imagepath,4326)
-                    arcpy.CopyRaster_management(imagepath,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),background_value = 0,nodata_value = 0,transform = True)
+                    arcpy.CopyRaster_management(imagepath,fin_image_name,background_value = 0,nodata_value = 0,transform = True)
                 else:
-                    arcpy.ProjectRaster_management(imagepath,os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),4326,'CUBIC')
-                arcpy.DefineProjection_management(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),sr)
-                set_raster_background(os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif'),'black')
+                    arcpy.ProjectRaster_management(imagepath,fin_image_name,4326,'CUBIC')
+                arcpy.DefineProjection_management(fin_image_name,sr)
+                set_raster_background(fin_image_name,'white')
+            raster_desc = arcpy.Describe(fin_image_name)
+            extent = raster_desc.extent
+            centerlong = round(extent.XMin + (extent.XMax - extent.XMin)/2, 7)
+            centerlat = round(extent.YMin + (extent.YMax - extent.YMin)/2, 7)
+            set_imagedetail(extent,centerlat,centerlong,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif')
 
         
 
 if __name__ == '__main__':
     start = timeit.default_timer()
-    orderID = '1079804'#arcpy.GetParameterAsText(0)#'1058277'#arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
+    orderID = '1079990'#arcpy.GetParameterAsText(0)#'1058277'#arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
     ImageType = 'pdf'#arcpy.GetParameterAsText(1)#'geotiff'#pdf,geotiff,frame arcpy.GetParameterAsText(1)
-    UserMapScale = '1000'#arcpy.GetParameterAsText(2)
+    UserMapScale = '500'#arcpy.GetParameterAsText(2)
     scratch = r'C:\Users\JLoucks\Documents\JL\test4'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_new.mxd'
     wgs84_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\wgs84_template.mxd'
+    symbol_layer = r'\\cabcvan1gis006\GISData\Aerial_US\layer\order_symbol.lyr'
     arcpy.env.overwriteOutput=True
 
     #Set dynamic or user defined scale
@@ -445,7 +462,9 @@ if __name__ == '__main__':
 
     ##get image matrix and export
     if ImageType == 'frames':
-        export_frame(selected_list_json['RESULTS'],OrderGeometry)
+        BufferGeometry = create_clipbuffer(OrderGeometry)
+        get_shapefile(OrderGeometry,os.path.join(job_fin,OrderNumText+'.shp'))
+        export_frame(selected_list_json['RESULTS'],OrderGeometry,BufferGeometry)
     else:
         for image_year in selected_list_json['RESULTS'].keys():
             getimage_dict = {}
@@ -463,6 +482,7 @@ if __name__ == '__main__':
             if ImageType == 'pdf':
                 export_reportimage(getimage_dict,OrderGeometry,image_comment)
             elif ImageType == 'geotiff':
+                get_shapefile(OrderGeometry,os.path.join(job_fin,OrderNumText+'.shp'))
                 export_geotiff(getimage_dict,OrderGeometry,image_comment)
 
 
