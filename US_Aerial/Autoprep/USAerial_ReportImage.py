@@ -148,7 +148,7 @@ class OracleBadReturn(Exception):
     pass
 class NoAvailableImage(Exception):
     pass
-def set_raster_background_no(input_raster,remove_color):
+def set_raster_background(input_raster,remove_color):
     desc = arcpy.Describe(input_raster)
     if remove_color == 'black':
         for i in range(desc.bandCount):
@@ -159,12 +159,6 @@ def set_raster_background_no(input_raster,remove_color):
     elif remove_color == 'both':
         for i in range(desc.bandCount):
             arcpy.SetRasterProperties_management(input_raster ,nodata= str(i+1) + ' 255;'+ str(i+1) + ' 0')
-def set_raster_background(input_raster,min_pixel,max_pixel):
-    null_raster = os.path.join(scratch,os.path.basename(input_raster))
-    arcpy.CheckOutExtension("Spatial")
-    outSetNull = SetNull(input_raster, input_raster, "VALUE BETWEEN %s AND %s"%(min_pixel,max_pixel))
-    outSetNull.save(null_raster)
-    return null_raster
 def createGeometry(pntCoords,geometry_type,output_folder,output_name, spatialRef = arcpy.SpatialReference(4326)):
     outputSHP = os.path.join(output_folder,output_name)
     if geometry_type.lower()== 'point':
@@ -214,7 +208,7 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         image_source = imagedict[order_value][1]
         imagepath = imagedict[order_value][2]
         arcpy.SetRasterProperties_management(imagepath,data_type = 'PROCESSED')
-        set_raster_background(imagepath,'0','188')
+        set_raster_background(imagepath,'white')
         img_sr = arcpy.Describe(imagepath).spatialReference
         print img_sr.name
         if img_sr.name == 'Unknown' or img_sr.name == 'GCS_Unknown':
@@ -423,7 +417,6 @@ if __name__ == '__main__':
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_new.mxd'
     wgs84_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\wgs84_template.mxd'
-    symbol_layer = r'\\cabcvan1gis006\GISData\Aerial_US\layer\order_symbol.lyr'
     arcpy.env.overwriteOutput=True
 
     #Set dynamic or user defined scale
