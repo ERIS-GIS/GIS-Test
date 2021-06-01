@@ -60,8 +60,8 @@ tifdir_topo = r"\\cabcvan1fpr009\USGS_Topo\USGS_currentTopo_Geotiff"
 
 data_shadedrelief = r"\\cabcvan1fpr009\US_DEM\CellGrid_1X1Degree_NW.shp"
 data_geol = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\GEOL_DD_MERGE'
-data_flood = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_Fld_haz_Ar_merged2018'
-data_floodpanel = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_FIRM_PAN_MERGED2018'
+data_flood = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_Fld_haz_Ar_merged'
+data_floodpanel = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_FIRM_PAN_MERGED'
 data_wetland = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\Merged_wetland_Final'
 eris_wells = r"\\cabcvan1gis005\GISData\PSR\python\mxd\ErisWellSites.lyr"   #which contains water, oil/gas wells etc.
 path_shadedrelief = r"\\cabcvan1fpr009\US_DEM\hillshade13"
