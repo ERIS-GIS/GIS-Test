@@ -203,9 +203,9 @@ if __name__ == '__main__':
     ### set input parameters
     order_id = arcpy.GetParameterAsText(0)
     auid = arcpy.GetParameterAsText(1)
-    order_id = '1090533'
-    auid = '7374280'
-    env = 'prod'
+    order_id = '1106337'
+    auid = '1056732'
+    env = 'test'
     ## set scratch folder
     scratch_folder = arcpy.env.scratchFolder
     # arcpy.env.workspace = scratchFolder
@@ -263,11 +263,7 @@ if __name__ == '__main__':
                     if os.path.exists(result_input_image_job): ## this is the image which is alreary georeferenced by us aerial app
                         input_image = result_input_image_job
                     else: # read from inventory
-                        # make a copy of raw image in the local folder beacuse the TAB file along with image format on server make arcgis confused
-                        parts = os.path.basename(image_input_path_inv).split('.')
-                        input_raw_image_name = "".join(parts[:-1]) + '_raw' + '.' + parts[-1]
-                        shutil.copy(image_input_path_inv, os.path.join(arcpy.env.scratch_folder,input_raw_image_name))
-                        input_image = os.path.join(arcpy.env.scratch_folder,input_raw_image_name)
+                        arcpy.AddMessage('Input image is not availabe in the job folder!')
                     arcpy.AddMessage('Input Image : %s' % input_image)
                     gcp_points = CoordToString(aerial_georefjson['envelope']) # footPrint
                     ### Source point from input extent
