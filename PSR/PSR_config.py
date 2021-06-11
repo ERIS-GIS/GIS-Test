@@ -8,7 +8,7 @@
 # Copyright:   (c) cchen 2018
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
-
+#test
 import arcpy,os
 import ConfigParser
 
@@ -108,6 +108,7 @@ srGCS83 = arcpy.SpatialReference(os.path.join(connectionPath, r"projections\GCSN
 datapath_soil_HI =r'\\cabcvan1fpr009\SSURGO\CONUS_2015\gSSURGO_HI.gdb'
 datapath_soil_AK =r'\\cabcvan1fpr009\SSURGO\CONUS_2015\gSSURGO_AK.gdb'
 datapath_soil_CONUS =r'\\cabcvan1fpr009\SSURGO\CONUS_2015\gSSURGO_CONUS_10m.gdb'
+
 
 hydrologic_dict = {
         "A":'Soils in this group have low runoff potential when thoroughly wet. Water is transmitted freely through the soil.',
