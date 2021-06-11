@@ -179,9 +179,9 @@ try:
 ##    gc.collect()g
 
 # LOCAL #########################################################################
-    OrderIDText = '654593'
+    OrderIDText = '1080569'
     scratchfolder = arcpy.env.scratchFolder
-    scratch = arcpy.CreateFileGDB_management(scratchfolder,r"scratch.gdb")   # for tables to make Querytable
+    #scratch = arcpy.CreateFileGDB_management(scratchfolder,r"scratch.gdb")   # for tables to make Querytable
     scratch = os.path.join(scratchfolder,r"scratch.gdb")
 #################################################################################
     try:
@@ -778,11 +778,16 @@ try:
         for item in cellids_selected:
             item =item[:-4]
             reliefLayer = arcpy.mapping.Layer(relieflyrfile)
-            shutil.copyfile(os.path.join(path_shadedrelief,item+'_hs.img'),os.path.join(scratchfolder,item+'_hs.img'))
-            reliefLayer.replaceDataSource(scratchfolder,"RASTER_WORKSPACE",item+'_hs.img')
-            reliefLayer.name = item
-            arcpy.mapping.AddLayer(df_relief, reliefLayer, "BOTTOM")
-            reliefLayer = None
+            if os.path.exists(os.path.join(path_shadedrelief,item+ "_hs.img")):
+                print "Path exists" + path_shadedrelief, item+ "_hs.img"                
+                shutil.copyfile(os.path.join(path_shadedrelief,item+ "_hs.img"),os.path.join(scratchfolder,item+ "_hs.img"))
+                reliefLayer.replaceDataSource(scratchfolder,"RASTER_WORKSPACE",item+'_hs.img')
+                reliefLayer.name = item
+                arcpy.mapping.AddLayer(df_relief, reliefLayer, "BOTTOM")
+                reliefLayer = None    
+
+            else: 
+              print "img file doesn't exist " + item          
 
     arcpy.RefreshActiveView()
 
@@ -1405,7 +1410,7 @@ try:
                 print "--------------------------------------------------"
                 print "UNIT LABEL: " + in_row.ORIG_LABEL
                 print "UNIT NAME: " + in_row.UNIT_NAME     # unit name
-                print "UNIT AGE: " + in_row.UNIT_AGE    # unit age
+                print "UNIT AGE: " + str(in_row.UNIT_AGE)    # unit age
                 print "ROCK TYPE1: " + in_row.ROCKTYPE1    # rocktype 1
                 print "ROCK TYPE2: " + str(in_row.ROCKTYPE2)     # rocktype2
                 print "UNIT DESC: " + in_row.UNITDESC.encode("utf-8")     # unit description
@@ -1851,6 +1856,7 @@ try:
         wells_clip = os.path.join(scratchfolder,'wellsclip_'+dsoid+'.shp')
         print wells_clip
 
+        print eris_wells
         arcpy.Clip_analysis(eris_wells, bufferSHP_wells, wells_clip)
         arcpy.Select_analysis(wells_clip, os.path.join(scratchfolder,'wellsselected_'+dsoid+'.shp'), "DS_OID ="+dsoid)
         mergelist.append(os.path.join(scratchfolder,'wellsselected_'+dsoid+'.shp'))
