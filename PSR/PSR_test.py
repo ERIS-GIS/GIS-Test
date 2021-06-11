@@ -1856,7 +1856,6 @@ try:
         wells_clip = os.path.join(scratchfolder,'wellsclip_'+dsoid+'.shp')
         print wells_clip
 
-        print eris_wells
         arcpy.Clip_analysis(eris_wells, bufferSHP_wells, wells_clip)
         arcpy.Select_analysis(wells_clip, os.path.join(scratchfolder,'wellsselected_'+dsoid+'.shp'), "DS_OID ="+dsoid)
         mergelist.append(os.path.join(scratchfolder,'wellsselected_'+dsoid+'.shp'))
