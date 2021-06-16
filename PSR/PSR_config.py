@@ -8,7 +8,7 @@
 # Copyright:   (c) cchen 2018
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
-
+#test
 import arcpy,os
 import ConfigParser
 
@@ -63,7 +63,7 @@ data_geol = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\GEOL_DD_MERGE'
 data_flood = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_Fld_haz_Ar_merged'
 data_floodpanel = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_FIRM_PAN_MERGED'
 data_wetland = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\Merged_wetland_Final'
-eris_wells = r"\\cabcvan1gis005\GISData\PSR\python\mxd\ErisWellSites.lyr"   #which contains water, oil/gas wells etc.
+eris_wells = r"\\cabcvan1gis005\GISData\PSR\python\mxd\ErisWellSites_test.lyr"   #which contains water, oil/gas wells etc.
 path_shadedrelief = r"\\cabcvan1fpr009\US_DEM\hillshade13"
 datalyr_wetland = r"\\cabcvan1gis005\GISData\PSR\python\mxd\wetland_kml.lyr"
 ##datalyr_wetlandNY = r"E:\GISData\PSR\python\mxd\wetlandNY.lyr"
@@ -77,7 +77,7 @@ datalyr_plumetacoma = r"\\cabcvan1gis005\GISData\PSR\python\mxd\Plume.lyr"
 imgdir_demCA = r"\\Cabcvan1fpr009\US_DEM\DEM1"
 masterlyr_demCA = r"\\Cabcvan1fpr009\US_DEM\Canada_DEM_edited.shp"
 imgdir_dem = r"\\Cabcvan1fpr009\US_DEM\DEM13"
-masterlyr_dem = r"\\Cabcvan1fpr009\US_DEM\CellGrid_1X1Degree_NW_imagename_update.shp"
+masterlyr_dem = r"\\cabcvan1gis005\GISData\Data\US_DEM\CellGrid_1X1Degree_NW_wgs84.shp"
 masterlyr_states = r"\\cabcvan1gis005\GISData\PSR\python\mxd\USStates.lyr"
 masterlyr_counties = r"\\cabcvan1gis005\GISData\PSR\python\mxd\USCounties.lyr"
 masterlyr_cities = r"\\cabcvan1gis005\GISData\PSR\python\mxd\USCities.lyr"
@@ -108,6 +108,7 @@ srGCS83 = arcpy.SpatialReference(os.path.join(connectionPath, r"projections\GCSN
 datapath_soil_HI =r'\\cabcvan1fpr009\SSURGO\CONUS_2015\gSSURGO_HI.gdb'
 datapath_soil_AK =r'\\cabcvan1fpr009\SSURGO\CONUS_2015\gSSURGO_AK.gdb'
 datapath_soil_CONUS =r'\\cabcvan1fpr009\SSURGO\CONUS_2015\gSSURGO_CONUS_10m.gdb'
+
 
 hydrologic_dict = {
         "A":'Soils in this group have low runoff potential when thoroughly wet. Water is transmitted freely through the soil.',
