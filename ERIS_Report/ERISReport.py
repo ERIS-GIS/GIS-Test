@@ -1,14 +1,3 @@
-
-#-------------------------------------------------------------------------------
-# Name:        ERIS DATABASE MAP
-# Purpose:    Generates the maps for the ERIS DATABASE Reprt.
-#
-# Author:      cchen
-#
-# Created:     18/01/2019
-# Copyright:   (c) cchen 2019
-# Licence:     <your licence>
-#-------------------------------------------------------------------------------
 import os
 import traceback
 import timeit
@@ -52,20 +41,17 @@ def server_loc_config(configpath,environment):
     else:
         return 'invalid server configuration'
 
-server_environment = 'test'
+server_environment = 'test' #'test' for both dev and test
 server_config_file = r'\\cabcvan1gis006\GISData\ERISServerConfig.ini'
 server_config = server_loc_config(server_config_file,server_environment)
-#eris_report_path = r"gptools\ERISReport"
-#us_topo_path = r"gptools\Topo_USA"
-#eris_aerial_ca_path = r"gptools\Aerial_CAN"
-#tifdir_topo = r"\\cabcvan1fpr009\USGS_Topo\USGS_currentTopo_Geotiff"
-#world_aerial_arcGIS_online_URL = r"https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/0/query?f=json&returnGeometry=false&spatialRel=esriSpatialRelIntersects&maxAllowableOffset=0&geometryType=esriGeometryPoint&inSR=4326&outFields=SRC_DATE"
 
 class Machine:
+    machine_dev = r"\\cabcvan1gis005"
     machine_test = r"\\cabcvan1gis006"
     machine_prod = r"\\cabcvan1gis007"
 
 class Credential:
+    oracle_dev = r'eris_gis/gis295@GMDEVC.glaciermedia.inc'
     oracle_test = r'eris_gis/gis295@GMTESTC.glaciermedia.inc'
     oracle_production = r'eris_gis/gis295@GMPRODC.glaciermedia.inc'
 
@@ -74,6 +60,17 @@ class ReportPath:
     noninstant_reports_prod = server_config['noninstant']
     instant_report_test = server_config['instant']
     instant_report_prod = server_config['instant']
+
+class DevConfig:
+    machine_path=Machine.machine_test
+    instant_reports =ReportPath.instant_report_test
+    noninstant_reports = ReportPath.noninstant_reports_test
+
+    def __init__(self,code):
+        machine_path=self.machine_path
+        self.LAYER=LAYER(machine_path)
+        self.DATA=DATA(machine_path)
+        self.MXD=MXD(machine_path,code)
 
 class TestConfig:
     machine_path=Machine.machine_test
@@ -171,6 +168,7 @@ class LAYER():
         self.erisPoints = os.path.join(machine_path,eris_report_path,r"layer","ErisClipCC.lyr")
         self.topowhite = os.path.join(machine_path,eris_report_path,'layer',"topo_white.lyr")
         self.road = os.path.join(machine_path,eris_report_path,r"layer","Roadadd_notransparency.lyr")
+        self.eris_polygon = os.path.join(machine_path,eris_report_path,r"layer","eris_polygon.lyr")
 
 class DATA():
     def __init__(self,machine_path):
@@ -214,6 +212,8 @@ class Oracle:
 
     def __init__(self,machine_name):
         # initiate connection credential
+        if machine_name.lower() =='dev':
+            self.oracle_credential = Credential.oracle_dev
         if machine_name.lower() =='test':
             self.oracle_credential = Credential.oracle_test
         elif machine_name.lower()=='prod':
@@ -232,7 +232,7 @@ class Oracle:
         self.cursor.close()
         self.oracle_connection.close()
 
-    def call_function(self,function_name,OrderIDText):
+    def call_function(self,function_name,order_id):
         self.connect_to_oracle()
         cursor = self.cursor
         try:
@@ -240,11 +240,11 @@ class Oracle:
             func = [self.oracle_functions[_] for _ in self.oracle_functions.keys() if function_name.lower() ==_.lower()]
             if func != [] and len(func) == 1:
                 try:
-                    output=json.loads(cursor.callfunc(func[0],outType,((str(OrderIDText)),)).read())
+                    output=json.loads(cursor.callfunc(func[0],outType,((str(order_id)),)).read())
                 except ValueError:
-                    output = cursor.callfunc(func[0],outType,((str(OrderIDText)),)).read()
+                    output = cursor.callfunc(func[0],outType,((str(order_id)),)).read()
                 except AttributeError:
-                    output = cursor.callfunc(func[0],outType,((str(OrderIDText)),))
+                    output = cursor.callfunc(func[0],outType,((str(order_id)),))
             return output
         except cx_Oracle.Error as e:
             raise Exception(("Oracle Failure",e.message))
@@ -255,7 +255,7 @@ class Oracle:
         finally:
             self.close_connection()
 
-    def call_procedure(self,procedure_name,OrderIDText):
+    def call_procedure(self,procedure_name,order_id):
         self.connect_to_oracle()
         cursor = self.cursor
         try:
@@ -263,11 +263,11 @@ class Oracle:
             func = [self.oracle_procedures[_] for _ in self.oracle_procedures.keys() if procedure_name.lower() ==_.lower()]
             if func !=[] and len(func)==1:
                 try:
-                    output = cursor.callproc(func[0],[outValue,str(OrderIDText),])
+                    output = cursor.callproc(func[0],[outValue,str(order_id),])
                 except ValueError:
-                    output = cursor.callproc(func[0],[outValue,str(OrderIDText),])
+                    output = cursor.callproc(func[0],[outValue,str(order_id),])
                 except AttributeError:
-                    output = cursor.callproc(func[0],[outValue,str(OrderIDText),])
+                    output = cursor.callproc(func[0],[outValue,str(order_id),])
             return output
         except cx_Oracle.Error as e:
             raise Exception(("Oracle Failure",e.message))
@@ -326,7 +326,7 @@ def addERISpoint(pointInfo,mxd,output_folder,out_points=r'points.shp'):
     out_pointsSHP = os.path.join(output_folder,out_points)
     erisPointsLayer = config.LAYER.erisPoints
     #erisIDs_4points = dict((_.get('DATASOURCE_POINTS')[0].get('ERIS_DATA_ID'),[('m%sc'%(_.get("MAP_KEY_LOC"))) if _.get("MAP_KEY_NO_TOT")==1 else ('m%sc(%s)'%(_.get("MAP_KEY_LOC"), _.get("MAP_KEY_NO_TOT"))) ,float('%s'%(1 if round(_.get("ELEVATION_DIFF"),2)>0.0 else 0 if round(_.get("ELEVATION_DIFF"),2)==0.0 else -1 if round(_.get("ELEVATION_DIFF"),2)<0.0 else 100))]) for _ in pointInfo)
-    erisIDs_4points = dict((_.get('DATASOURCE_POINTS')[0].get('ERIS_DATA_ID'),[('m%sc'%(_.get("MAP_KEY_LOC"))) if _.get("MAP_KEY_NO_TOT")==1 else ('m%sc(%s)'%(_.get("MAP_KEY_LOC"), _.get("MAP_KEY_NO_TOT"))) ,float('%s'%(1 if _.get("ELEVATION_DIFF")>0.0 else 0 if _.get("ELEVATION_DIFF")==0.0 else -1 if _.get("ELEVATION_DIFF")<0.0 else 100))]) for _ in pointInfo)
+    erisIDs_4points = dict((_.get('DATASOURCE_POINTS')[0].get('ERIS_DATA_ID'),[('m%sc'%(_.get("MAP_KEY_LOC"))) if _.get("MAP_KEY_NO_TOT")==1 else ('m%sc(%s)'%(_.get("MAP_KEY_LOC"), _.get("MAP_KEY_NO_TOT"))) ,float('%s'%(-2 if _.get("ELEVATION_DIFF")=='-' else 1 if float(_.get("ELEVATION_DIFF"))>0.0 else 0 if float(_.get("ELEVATION_DIFF"))==0.0 else -1 if float(_.get("ELEVATION_DIFF"))<0.0 else 100))]) for _ in pointInfo)
     erispoints = dict((int(_.get('DATASOURCE_POINTS')[0].get('ERIS_DATA_ID')),(_.get("X"),_.get("Y"))) for _ in pointInfo)
     # print(erisIDs_4points)
     if erisIDs_4points != {}:
@@ -358,7 +358,7 @@ def addRoadLayer(mxd,buffer_name, output_folder):
     arcpy.Clip_analysis(config.DATA.road, buffer_name, os.path.join(output_folder,road_clip), "0.3 Meters")
     mxd.addLayer(config.LAYER.road,output_folder,road_clip)
 
-def addOrderGeometry(mxd,geometry_type,output_folder,name):
+def addorder_geometry(mxd,geometry_type,output_folder,name):
     geometryLayer = eval('config.LAYER.%s'%(geometry_type.lower()))
     if arcpy.mapping.ListLayoutElements(mxd.mxd, "LEGEND_ELEMENT", "Legend") !=[]:
         legend = arcpy.mapping.ListLayoutElements(mxd.mxd, "LEGEND_ELEMENT", "Legend")[0]
@@ -369,7 +369,7 @@ def addOrderGeometry(mxd,geometry_type,output_folder,name):
         mxd.addLayer(geometryLayer,output_folder,name)
     mxd.zoomToTopLayer()
 
-def getMaps(mxd, output_folder,map_name,buffer_dict, buffer_sizes_list,unit_code,buffer_name=r"buffer_%s.shp", multiPage = False):
+def getMaps(mxd, output_folder,map_name,buffer_dict, buffer_sizes_list,unit_code,buffer_name=r"buffer_%s.shp", multi_page = False):
     temp = []
     if buffer_name.endswith(".shp"):
         buffer_name = buffer_name[:-4]
@@ -378,7 +378,7 @@ def getMaps(mxd, output_folder,map_name,buffer_dict, buffer_sizes_list,unit_code
         if buffer_sizes_list[i]>=0.04:
             mxd.addLayer(bufferLayer,output_folder,"buffer_%s"%(i))
         if i in buffer_dict.keys()[-3:]:
-            mxd.zoomToLayer("Grid") if i == buffer_dict.keys()[-1] and multiPage == True else mxd.zoomToTopLayer()
+            mxd.zoomToLayer("Grid") if i == buffer_dict.keys()[-1] and multi_page == True else mxd.zoomToTopLayer()
             mxd.df.scale = ((int(1.1*mxd.df.scale)/100)+1)*100
             unit = 'Kilometer' if unit_code ==9036 else 'Mile'
             mxd.addTextoMap("Map","Map: %s %s Radius"%(buffer_sizes_list[i],unit))
@@ -392,11 +392,11 @@ def getMaps(mxd, output_folder,map_name,buffer_dict, buffer_sizes_list,unit_code
 def exportMap(mxd,output_folder,map_name,UTMzone,buffer_dict,buffer_sizes_list,unit_code, buffer_name=r"buffer_%s.shp"):
     mxd.df.spatialReference = arcpy.SpatialReference('WGS 1984 UTM Zone %sN'%UTMzone)
     mxd.resolution =250
-    temp = getMaps(mxd, output_folder,map_name, buffer_dict, buffer_sizes_list,unit_code, buffer_name=r"buffer_%s.shp", multiPage = False)
+    temp = getMaps(mxd, output_folder,map_name, buffer_dict, buffer_sizes_list,unit_code, buffer_name=r"buffer_%s.shp", multi_page = False)
     mxd.mxd.saveACopy(os.path.join(output_folder,"mxd.mxd"))
     return temp
 
-def exportMultipage(mxd,output_folder,map_name,UTMzone,grid_size,erisPointLayer,buffer_dict,buffer_sizes_list,unit_code, buffer_name=r"buffer_%s.shp"):
+def exportmulti_page(mxd,output_folder,map_name,UTMzone,grid_size,erisPointLayer,buffer_dict,buffer_sizes_list,unit_code, buffer_name=r"buffer_%s.shp"):
     bufferLayer = config.LAYER.buffer
     gridlr = "gridlr"
     gridlrSHP = os.path.join(output_folder, gridlr+'.shp')
@@ -407,7 +407,7 @@ def exportMultipage(mxd,output_folder,map_name,UTMzone,grid_size,erisPointLayer,
     mxd.turnLabel(erisPointLayer,False)
     mxd.df.spatialReference = arcpy.SpatialReference('WGS 1984 UTM Zone %sN'%UTMzone)
     mxd.resolution =250
-    temp = getMaps(mxd, output_folder,map_name, buffer_dict, buffer_sizes_list, unit_code, buffer_name=r"buffer_%s.shp", multiPage = True)
+    temp = getMaps(mxd, output_folder,map_name, buffer_dict, buffer_sizes_list, unit_code, buffer_name=r"buffer_%s.shp", multi_page = True)
     mxd.turnLabel(erisPointLayer,True)
     mxd.addTextoMap("Map","Grid: ")
     mxd.addTextoMap("Grid",'<dyn type="page"  property="number"/>')
@@ -419,7 +419,7 @@ def exportMultipage(mxd,output_folder,map_name,UTMzone,grid_size,erisPointLayer,
 
 def exportTopo(mxd,output_folder,geometry_name,geometry_type, output_pdf,unit_code,bufferSHP,UTMzone):
     geometryLayer = eval('config.LAYER.%s'%geometry_type.lower())
-    addOrderGeometry(mxd,geometry_type,output_folder,geometry_name)
+    addorder_geometry(mxd,geometry_type,output_folder,geometry_name)
     mxd.df.spatialReference = arcpy.SpatialReference('WGS 1984 UTM Zone %sN'%UTMzone)
     topoYear = '2020'
     if unit_code == 9093:
@@ -590,7 +590,7 @@ def getTopoQuadnYear(topo_filelist):
 
 def exportAerial(mxd,output_folder,geometry_name,geometry_type,centroid,scale,output_pdf,UTMzone):
     geometryLayer = eval('config.LAYER.%s'%geometry_type.lower())
-    addOrderGeometry(mxd,geometry_type,output_folder,geometry_name)
+    addorder_geometry(mxd,geometry_type,output_folder,geometry_name)
     aerialYear = getWorldAerialYear(centroid)
     mxd.addTextoMap("Year","Year: %s"%aerialYear)
     mxd.df.spatialReference = arcpy.SpatialReference('WGS 1984 UTM Zone %sN'%UTMzone)
@@ -649,56 +649,120 @@ def exportViewerTable(ImagePath,FileName):
     metaitem['lat_ne'] = desc.extent.YMax
     metaitem['long_ne'] = desc.extent.XMax
 
-    delete_query = "delete from overlay_image_info where order_id = '%s' and type = '%s' and filename = '%s'"%(OrderIDText,metaitem['type'],FileName)
-    insert_query = "insert into overlay_image_info values (%s, %s, %s, %.5f, %.5f, %.5f, %.5f, %s, '', '')" % (str(OrderIDText), orderInfo['ORDER_NUM'], "'" + metaitem['type']+"'", metaitem['lat_sw'], metaitem['long_sw'], metaitem['lat_ne'], metaitem['long_ne'],"'"+metaitem['imagename']+"'" )
+    delete_query = "delete from overlay_image_info where order_id = '%s' and type = '%s' and filename = '%s'"%(order_id,metaitem['type'],FileName)
+    insert_query = "insert into overlay_image_info values (%s, %s, %s, %.5f, %.5f, %.5f, %.5f, %s, '', '')" % (str(order_id), orderInfo['ORDER_NUM'], "'" + metaitem['type']+"'", metaitem['lat_sw'], metaitem['long_sw'], metaitem['lat_ne'], metaitem['long_ne'],"'"+metaitem['imagename']+"'" )
     image_info = Oracle('test').insert_overlay(delete_query,insert_query)
-
-if __name__ == '__main__':
+    
+def export_to_kml(order_number,mxd_doc):
+    viewer_kml_path = os.path.join(scratch,order_number +'_eris_kml')
+    if not os.path.exists(viewer_kml_path):
+        os.mkdir(viewer_kml_path)
+    eris_polygon_clip = os.path.join(scratch, "eris_polygon_clip.shp")
+    df = arcpy.mapping.ListDataFrames(mxd_doc.mxd,'')[0]    # the spatial reference here is UTM zone #, need to change to WGS84 Web Mercator
+    df.spatialReference = srWGS84
+    #re-focus using Buffer layer for multipage
+    if multi_page:
+        buffer_layer = arcpy.mapping.ListLayers(mxd_doc.mxd, "Buffer", df)[0]
+        df.extent = buffer_layer.getSelectedExtent(False)
+        df.scale = df.scale * 1.1
+    df_as_feature = arcpy.Polygon(arcpy.Array([df.extent.lowerLeft, df.extent.lowerRight, df.extent.upperRight, df.extent.upperLeft]), df.spatialReference)
+    del df, mxd_doc
+    eris_kml_extend = os.path.join(scratch,"eris_kml_extend.shp")
+    arcpy.Project_management(df_as_feature, eris_kml_extend, srWGS84)
+    arcpy.Clip_analysis(config.LAYER.eris_polygon, eris_kml_extend, eris_polygon_clip)
+    del df_as_feature
+    
+    if int(arcpy.GetCount_management(eris_polygon_clip).getOutput(0)) > 0:
+        keep_field_list = ("source")
+        field_info = ""
+        field_list = arcpy.ListFields(eris_polygon_clip)
+        for field in field_list:
+            if field.name.lower() in keep_field_list:
+                if field.name.lower() == 'source':
+                    field_info = field_info + field.name + " " + "Wetland CLASS" + " VISIBLE;"
+                else:
+                    pass
+            else:
+                field_info = field_info + field.name + " " + field.name + " HIDDEN;"
+        arcpy.MakeFeatureLayer_management(eris_polygon_clip, 'eris_polygon_clip_lyr',"", "", field_info[:-1])
+        arcpy.ApplySymbologyFromLayer_management('eris_polygon_clip_lyr', config.LAYER.eris_polygon)
+        arcpy.LayerToKML_conversion('eris_polygon_clip_lyr', os.path.join(viewer_kml_path,"eris_polygon.kmz"))
+        
+        ### copy kml to viewer folder
+        if os.path.exists(os.path.join(viewer_path, order_number + '_eris_kml')):
+                shutil.rmtree(os.path.join(viewer_path, order_number + '_eris_kml'))
+        shutil.copytree(viewer_kml_path, os.path.join(viewer_path, order_number + '_eris_kml'))
+        arcpy.AddMessage('      -- Create ERIS polygon kmz map: %s' % os.path.join(viewer_path, order_number + '_eris_kml'))
+        arcpy.Delete_management('eris_polygon_clip_lyr')
+        ### upload kml from eris polygon into xplorer
+        kml_upload_url = kml_upload_service_url + order_num
+        urllib.urlopen(kml_upload_url)
+    
+if __name__ == '__main__': 
     try:
         # INPUT #####################################
-        OrderIDText = arcpy.GetParameterAsText(0).strip()#'736799'#
-        multipage = True if (arcpy.GetParameterAsText(1).lower()=='yes' or arcpy.GetParameterAsText(1).lower()=='y') else False
-        gridsize = arcpy.GetParameterAsText(2).strip()#0#
+        order_id = arcpy.GetParameterAsText(0).strip()
+        # order_id = '1080523'#'736799'#
+        
+        if arcpy.GetParameterAsText(1).lower()=='yes' or arcpy.GetParameterAsText(1).lower()=='y':
+            multi_page = True
+        else: 
+            multi_page = False
+        grid_size = arcpy.GetParameterAsText(2).strip()#0#
+        # grid_size = 0
         code = arcpy.GetParameterAsText(3).strip()#'usa'#
-        isInstant = True if arcpy.GetParameterAsText(4).strip().lower()=='yes'else False
-        scratch = arcpy.env.scratchFolder#r'C:\Users\JLoucks\Documents\JL\test2'
+        # code = 'usa'
+       
+        if arcpy.GetParameterAsText(4).lower()=='yes' or arcpy.GetParameterAsText(4).lower()=='y':
+             is_instant = True
+        else: 
+             is_instant = False
 
+        scratch = arcpy.env.scratchFolder
+        env = 'test'
+        
+        ##get info for order from oracle
+        order_info = Oracle(env).call_function('getorderinfo',str(order_id))
+        order_num = str(order_info['ORDER_NUM'])
+        srGoogle = arcpy.SpatialReference(3857)
+        srWGS84 = arcpy.SpatialReference(4326)
         # Server Setting ############################
         code = 9093 if code.strip().lower()=='usa' else 9036 if code.strip().lower()=='can' else 9049 if code.strip().lower()=='mex' else ValueError
-        config = TestConfig(code)
+        config = DevConfig(code)
 
         # PARAMETERS ################################
-        orderGeometry = r'orderGeometry.shp'
-        orderGeometrySHP = os.path.join(scratch,orderGeometry)
+        order_geometry = r'order_geometry.shp'
+        order_geometry_shp = os.path.join(scratch,order_geometry)
         map_name = 'map_%s.pdf'
-        mapMM_name = 'mapMM_%s.pdf'
-        bufferMax = ''
+        map_mm_name = 'map_mm_%s.pdf'
+        buffer_max = ''
         buffer_name = "buffer_%s.shp"
-        mapMM = os.path.join(scratch,mapMM_name)
+        map_mm = os.path.join(scratch,map_mm_name)
         aerial_pdf = os.path.join(scratch,'mapbing.pdf')
         topo_pdf = os.path.join(scratch,"maptopo.pdf")
-        pdfreport = os.path.join(scratch,map_name)
-        grid_unit = 'Kilometers' if code == 9036 and float(gridsize.strip())<100 else 'Meters' if code ==9036 else 'Miles'
-        gridsize = '%s %s'%(gridsize,grid_unit)
-        viewerpath = server_config['viewer']
+        pdf_report = os.path.join(scratch,map_name)
+        grid_unit = 'Kilometers' if code == 9036 and float(grid_size.strip())<100 else 'Meters' if code ==9036 else 'Miles'
+        grid_size = '%s %s'%(grid_size,grid_unit)
+        viewer_path = server_config['viewer']
         currentuploadurl = server_config['viewer_upload']+r"/ErisInt/BIPublisherPortal_test/Viewer.svc/CurImageUpload?ordernumber="
-
+        kml_upload_service_url  = server_config['viewer_upload'] + r"/ErisInt/BIPublisherPortal/Viewer.svc/ErisKmlUpload?ordernumber="
+        
         # STEPS ####################################
         # 1  get order info by Oracle call
-        orderInfo= Oracle('test').call_function('getorderinfo',OrderIDText)
-        needTopo= Oracle('test').call_function('printTopo',OrderIDText)
-        xplorerflag= Oracle('test').call_procedure('xplorerflag',OrderIDText)[0]
+        orderInfo= Oracle(env).call_function('getorderinfo',order_id)
+        needTopo= Oracle(env).call_function('printTopo',order_id)
+        xplorerflag= Oracle(env).call_procedure('xplorerflag',order_id)[0]
         end = timeit.default_timer()
         arcpy.AddMessage(('call oracle', round(end -start1,4)))
         start=end
-
+        
         # 2 create xplorer directory
         if xplorerflag == 'Y':
             scratchviewer = os.path.join(scratch,orderInfo['ORDER_NUM']+'_current')
             os.mkdir(scratchviewer)
 
         # 2 create order geometry
-        orderGeometrySHP = createGeometry(eval(orderInfo[u'ORDER_GEOMETRY'][u'GEOMETRY'])[0],orderInfo[u'ORDER_GEOMETRY'][u'GEOMETRY_TYPE'],scratch,orderGeometry)
+        order_geometry_shp = createGeometry(eval(orderInfo[u'ORDER_GEOMETRY'][u'GEOMETRY'])[0],orderInfo[u'ORDER_GEOMETRY'][u'GEOMETRY_TYPE'],scratch,order_geometry)
         end = timeit.default_timer()
         arcpy.AddMessage(('create geometry shp', round(end -start,4)))
         start=end
@@ -718,31 +782,30 @@ if __name__ == '__main__':
 
         if code == 9093:
             # 3.1 MAx Buffer
-            bufferMax = os.path.join(scratch,buffer_name%(len(orderInfo['BUFFER_GEOMETRY'])+1))
-            maxBuffer = max([float(_.keys()[0]) for _ in orderInfo['BUFFER_GEOMETRY']]) if orderInfo['BUFFER_GEOMETRY'] !=[] else 0#
-            maxBuffer ="%s MILE"%(2*maxBuffer if maxBuffer>0.2 else 2)
+            buffer_max = os.path.join(scratch,buffer_name%(len(orderInfo['BUFFER_GEOMETRY'])+1))
+            max_buffer = max([float(_.keys()[0]) for _ in orderInfo['BUFFER_GEOMETRY']]) if orderInfo['BUFFER_GEOMETRY'] !=[] else 0#
+            max_buffer ="%s MILE"%(2*max_buffer if max_buffer>0.2 else 2)
             # print(orderInfo['BUFFER_GEOMETRY'])
-            arcpy.Buffer_analysis(orderGeometrySHP,bufferMax,maxBuffer)
+            arcpy.Buffer_analysis(order_geometry_shp,buffer_max,max_buffer)
             end = timeit.default_timer()
             arcpy.AddMessage(('create max buffer', round(end -start,4)))
             start=end
             # 4-1 add Road US
-            addRoadLayer(map1, bufferMax,scratch)
+            addRoadLayer(map1, buffer_max,scratch)
             end = timeit.default_timer()
             arcpy.AddMessage(('4-1 clip and add road', round(end -start,4)))
             start=end
 
         # 4-2 add ERIS points
-        erisPointsInfo = Oracle('test').call_function('geterispointdetails',OrderIDText)
-        # for i in erisPointsInfo:
-        #     print(i)
+        erisPointsInfo = Oracle(env).call_function('geterispointdetails',order_id)
+        
         erisPointsLayer=addERISpoint(erisPointsInfo,map1,scratch)
         end = timeit.default_timer()
         arcpy.AddMessage(('4-3 add ERIS points to Map object', round(end -start,4)))
         start=end
 
         # 4-2 add Order Geometry
-        addOrderGeometry(map1,orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],scratch,orderGeometry)
+        addorder_geometry(map1,orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],scratch,order_geometry)
         end = timeit.default_timer()
         arcpy.AddMessage(('4-2 add Geometry layer to Map object', round(end -start,4)))
         start=end
@@ -755,13 +818,13 @@ if __name__ == '__main__':
         arcpy.AddMessage(('4-3 Add Address n turn on source layers', round(end -start,4)))
         start=end
 
-        # 4-4 Optional Multipage add Buffer Export Map
+        # 4-4 Optional multi_page add Buffer Export Map
         zoneUTM = orderInfo['ORDER_GEOMETRY']['UTM_ZONE']
         if zoneUTM<10:
             zoneUTM =' %s'%zoneUTM
 
-        if multipage==True:
-            [maplist,mapMM] = exportMultipage(map1,scratch,mapMM_name,zoneUTM,gridsize,erisPointsLayer,buffers,buffer_sizes,code,buffer_name)
+        if multi_page==True:
+            [maplist,map_mm] = exportmulti_page(map1,scratch,map_mm_name,zoneUTM,grid_size,erisPointsLayer,buffers,buffer_sizes,code,buffer_name)
             end = timeit.default_timer()
             arcpy.AddMessage(('4-4 MM map to pdf', round(end -start,4)))
             start=end
@@ -772,7 +835,7 @@ if __name__ == '__main__':
             arcpy.AddMessage(('4-4 maps to 3 pdfs', round(end -start,4)))
             start=end
         scale = map1.df.scale
-        del map1,erisPointsLayer
+        del erisPointsLayer
 
         # 5 Aerial
         mapbing = Map(config.MXD.mxdbing)
@@ -781,7 +844,7 @@ if __name__ == '__main__':
         start=end
         mapbing.addTextoMap('Address',"Address: %s, %s, %s"%(orderInfo['ADDRESS'],orderInfo["CITY"],orderInfo['PROVSTATE']))
         mapbing.addTextoMap("OrderNum","Order Number: %s"%orderInfo['ORDER_NUM'])
-        exportAerial(mapbing,scratch,orderGeometry,orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],eval(orderInfo['ORDER_GEOMETRY']['CENTROID'].strip('[]')),scale, aerial_pdf,zoneUTM)
+        exportAerial(mapbing,scratch,order_geometry,orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],eval(orderInfo['ORDER_GEOMETRY']['CENTROID'].strip('[]')),scale, aerial_pdf,zoneUTM)
         del mapbing
         end = timeit.default_timer()
         arcpy.AddMessage(('5-2 aerial', round(end -start,4)))
@@ -796,51 +859,55 @@ if __name__ == '__main__':
             maptopo.addTextoMap('Address',"Address: %s, %s"%(orderInfo['ADDRESS'],orderInfo['PROVSTATE']))
             maptopo.addTextoMap("OrderNum","Order Number: %s"%orderInfo['ORDER_NUM'])
             
-            exportTopo(maptopo,scratch,orderGeometry,orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],topo_pdf,code,bufferMax,zoneUTM)
-            del maptopo,orderGeometry
+            exportTopo(maptopo,scratch,order_geometry,orderInfo['ORDER_GEOMETRY']['GEOMETRY_TYPE'],topo_pdf,code,buffer_max,zoneUTM)
+            del maptopo,order_geometry
             end = timeit.default_timer()
             arcpy.AddMessage(('6 Topo', round(end -start,4)))
             start=end
 
         # 7 Report
         maplist.sort(reverse=True)
-        if multipage ==True:
-            maplist.append(mapMM)
+        if multi_page ==True:
+            maplist.append(map_mm)
         maplist.append(aerial_pdf)
         maplist.append(topo_pdf) if needTopo =='Y' else None
         end = timeit.default_timer()
         arcpy.AddMessage(('7 maplist', round(end -start,4)))
         start=end
 
-        pdfreport =pdfreport%(orderInfo['ORDER_NUM'])
-        outputPDF = arcpy.mapping.PDFDocumentCreate(pdfreport)
+        pdf_report =pdf_report%(orderInfo['ORDER_NUM'])
+        outputPDF = arcpy.mapping.PDFDocumentCreate(pdf_report)
         for page in maplist:
             outputPDF.appendPages(str(page))
         outputPDF.saveAndClose()
 
-        if isInstant:
-            shutil.copy(pdfreport,config.instant_reports)
+        if is_instant:
+            shutil.copy(pdf_report,config.instant_reports)
         else:
-            shutil.copy(pdfreport,config.noninstant_reports)
+            shutil.copy(pdf_report,config.noninstant_reports)
         end = timeit.default_timer()
         arcpy.AddMessage(('7 Bundle', round(end -start,4)))
         start=end
-        arcpy.SetParameterAsText(5,pdfreport)
+        arcpy.SetParameterAsText(5,pdf_report)
 
         # Xplorer
         if xplorerflag == 'Y':
-            if os.path.exists(os.path.join(viewerpath,orderInfo['ORDER_NUM']+'_current')):
-                shutil.rmtree(os.path.join(viewerpath,orderInfo['ORDER_NUM']+'_current'))
-            shutil.copytree(scratchviewer, os.path.join(viewerpath, orderInfo['ORDER_NUM']+'_current'))
-            url = currentuploadurl + orderInfo['ORDER_NUM']
+            # os.path.join(scratch,'mxd.mxd')
+            export_to_kml(order_num,map1)
+            
+            if os.path.exists(os.path.join(viewer_path,orderInfo['ORDER_NUM']+'_current')):
+                shutil.rmtree(os.path.join(viewer_path,orderInfo['ORDER_NUM']+'_current'))
+            shutil.copytree(scratchviewer, os.path.join(viewer_path, orderInfo['ORDER_NUM']+'_current'))
+            ### upload topo image into xplorer
+            url = currentuploadurl + order_num
             urllib.urlopen(url)
-
+        del map1
     except:
         tb = sys.exc_info()[2]
         tbinfo = traceback.format_tb(tb)[0]
         pymsg = "PYTHON ERRORS:\nTraceback info:\n %s \nError Info:\n %s"%(tbinfo,str(sys.exc_info()[1]))
         msgs = "ArcPy ERRORS:\n %s\n"%arcpy.GetMessages(2)
-        arcpy.AddError("hit CC's error code in except: Order ID %s"%OrderIDText)
+        arcpy.AddError("hit CC's error code in except: Order ID %s"%order_id)
         arcpy.AddError(pymsg)
         arcpy.AddError(msgs)
         raise
