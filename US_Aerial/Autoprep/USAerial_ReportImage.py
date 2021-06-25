@@ -182,8 +182,8 @@ def create_clipbuffer(ordergeometry):
 def set_imagedetail(extent,centerlat,centerlong,fin_image_name):
     try:
         image_extents = str({"PROCEDURE":Oracle.erisapi_procedures['passreportextent'], "ORDER_NUM" : OrderNumText,"TYPE":"ae_pdf",
-        "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":(extent.YMax),"NELONG":str(extent.XMax),"FILENAME":str(fin_image_name),
-        "CENTERLAT" : str(centerlat), "CENTERLONG":str(centerlong), "IMAGE_WIDTH":"","IMAGE_HEIGHT":""})
+        "SWLAT":str(extent.YMin),"SWLONG":str(extent.XMin),"NELAT":str(extent.YMax),"NELONG":str(extent.XMax),"SELAT":str(extent.YMin),"SELONG":str(extent.XMax),"NWLAT":str(extent.YMax),"NWLONG":str(extent.XMin),"FILENAME":str(fin_image_name),
+        "CENTERLAT" : str(centerlat), "CENTERLONG":str(centerlong), "IMAGE_WIDTH":"","IMAGE_HEIGHT":"",})
         message_return = Oracle('test').call_erisapi(image_extents)
         if message_return[3] != 'Y':
             raise OracleBadReturn
@@ -217,39 +217,31 @@ def export_reportimage(imagedict,ordergeometry,image_comment):
         arcpy.MakeRasterLayer_management(imagepath,lyrpath)
         image_lyr = arcpy.mapping.Layer(lyrpath)
         arcpy.mapping.AddLayer(df,image_lyr,'TOP')
-    sr = arcpy.GetUTMFromLocation(centroidX,centroidY)
+    if FactoryCode == '':
+        sr = arcpy.SpatialReference(3857) #web mercator
+    elif FactoryCode == 'UTM':
+        sr = arcpy.GetUTMFromLocation(centroidX,centroidY)
+    else:
+        sr = arcpy.SpatialReference(int(FactoryCode))
     df.spatialReference = sr
     geometry_layer = arcpy.mapping.ListLayers(mxd,'OrderGeometry',df)[0]
     geometry_layer.visible = False
     geo_extent = geometry_layer.getExtent(True)
     df.extent = geo_extent
     MapScale = 6000
-    if UserMapScale is not None:
-        df.scale = UserMapScale
-        MapScale = UserMapScale
+    if PrintScale is not None:
+        df.scale = PrintScale
+        MapScale = PrintScale
         export_width = 5100
         export_height = 6600
-    elif df.scale <= MapScale and UserMapScale is None:
-        df.scale = MapScale
-        export_width = 5100
-        export_height = 6600
-    elif df.scale > MapScale and UserMapScale is None:
-        df.scale = ((int(df.scale)/100)+1)*100
-        export_width = 5100
-        export_height = 6600
+    else:
+        arcpy.AddError('No scale set for order')
     arcpy.RefreshActiveView()
     arcpy.overwriteOutput = True
-    scale = df.scale
-    if scale == 6000:
-        scaletxt = '1":' + str(int(scale/12))+"'"
-        filescale = str(int(scale/12))
-    else:
-        scaletxt = '1":' + str(int(round(scale/12,-2)))+"'"
-        filescale = str(int(round(scale/12,-2)))
     if image_comment != "":
-        report_image_name = image_year + '_' + image_source  + '_'+filescale +'_'+image_comment+'.jpg'
+        report_image_name = image_year + '_' + image_source  + '_'+UserMapScale +'_'+image_comment+'.jpg'
     else:
-        report_image_name = image_year + '_' + image_source  + '_'+filescale +'.jpg'
+        report_image_name = image_year + '_' + image_source  + '_'+UserMapScale +'.jpg'
     arcpy.AddMessage("Exporting: "+report_image_name)
     arcpy.env.pyramid = "NONE"
     arcpy.mapping.ExportToJPEG(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=True,color_mode = '24-BIT_TRUE_COLOR', jpeg_quality = 80)
@@ -289,39 +281,31 @@ def export_geotiff(imagedict,ordergeometry,image_comment):
         arcpy.MakeRasterLayer_management(imagepath,lyrpath)
         image_lyr = arcpy.mapping.Layer(lyrpath)
         arcpy.mapping.AddLayer(df,image_lyr,'TOP')
-    sr = arcpy.GetUTMFromLocation(centroidX,centroidY)
+    if FactoryCode == '':
+        sr = arcpy.SpatialReference(3857) #web mercator
+    elif FactoryCode == 'UTM':
+        sr = arcpy.GetUTMFromLocation(centroidX,centroidY)
+    else:
+        sr = arcpy.SpatialReference(int(FactoryCode))
     df.spatialReference = sr
     geometry_layer = arcpy.mapping.ListLayers(mxd,'OrderGeometry',df)[0]
     geometry_layer.visible = False
     geo_extent = geometry_layer.getExtent(True)
     df.extent = geo_extent
     MapScale = 6000
-    if UserMapScale is not None:
-        df.scale = UserMapScale
-        MapScale = UserMapScale
+    if PrintScale is not None:
+        df.scale = PrintScale
+        MapScale = PrintScale
         export_width = 5100
         export_height = 6600
-    elif df.scale <= MapScale and UserMapScale is None:
-        df.scale = MapScale
-        export_width = 5100
-        export_height = 6600
-    elif df.scale > MapScale and UserMapScale is None:
-        df.scale = ((int(df.scale)/100)+1)*100
-        export_width = 5100
-        export_height = 6600
+    else:
+        arcpy.AddError('No scale set for order')
     arcpy.RefreshActiveView()
     arcpy.overwriteOutput = True
-    scale = df.scale
-    if scale == 6000:
-        scaletxt = '1":' + str(int(scale/12))+"'"
-        filescale = str(int(scale/12))
-    else:
-        scaletxt = '1":' + str(int(round(scale/12,-2)))+"'"
-        filescale = str(int(round(scale/12,-2)))
     if image_comment != "":
-        report_image_name = image_year + '_' + image_source  + '_'+filescale +'_'+image_comment+'.tif'
+        report_image_name = image_year + '_' + image_source  + '_'+UserMapScale +'_'+image_comment+'.tif'
     else:
-        report_image_name = image_year + '_' + image_source  + '_'+filescale +'.tif'
+        report_image_name = image_year + '_' + image_source  + '_'+UserMapScale +'.tif'
     arcpy.AddMessage("Exporting: "+report_image_name)
     arcpy.env.pyramid = "NONE"
     arcpy.mapping.ExportToTIFF(mxd,os.path.join(job_fin,report_image_name),df,df_export_width=export_width,df_export_height=export_height,world_file=False,color_mode = '24-BIT_TRUE_COLOR', tiff_compression='LZW',geoTIFF_tags=True)
@@ -346,7 +330,12 @@ def export_frame(imagedict,ordergeometry,buffergeometry):
             auid = str(image['AUI_ID'])
             imagepath = image['ORIGINAL_IMAGE_PATH']
             image_per_year += 1
-            sr = arcpy.SpatialReference(4326)
+            if FactoryCode == '':
+                sr = arcpy.SpatialReference(4326)
+            elif FactoryCode == 'UTM':
+                sr = arcpy.GetUTMFromLocation(centroidX,centroidY)
+            else:
+                sr = arcpy.SpatialReference(int(FactoryCode))
             fin_image_name = os.path.join(job_fin,image_year + '_' + image_source + '_' +str(image_per_year) + '.tif')
             if image_collection == 'DOQQ':
                 arcpy.overwriteOutput = True
@@ -397,7 +386,7 @@ def export_frame(imagedict,ordergeometry,buffergeometry):
                     arcpy.DefineProjection_management(imagepath,4326)
                     arcpy.CopyRaster_management(imagepath,fin_image_name,background_value = 0,nodata_value = 0,transform = True)
                 else:
-                    arcpy.ProjectRaster_management(imagepath,fin_image_name,4326,'CUBIC')
+                    arcpy.ProjectRaster_management(imagepath,fin_image_name,sr,'CUBIC')
                 arcpy.DefineProjection_management(fin_image_name,sr)
                 set_raster_background(fin_image_name,'white')
             raster_desc = arcpy.Describe(fin_image_name)
@@ -410,21 +399,27 @@ def export_frame(imagedict,ordergeometry,buffergeometry):
 
 if __name__ == '__main__':
     start = timeit.default_timer()
-    orderID = '1079990'#arcpy.GetParameterAsText(0)#'1058277'#arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
-    ImageType = 'pdf'#arcpy.GetParameterAsText(1)#'geotiff'#pdf,geotiff,frame arcpy.GetParameterAsText(1)
-    UserMapScale = '500'#arcpy.GetParameterAsText(2)
+    orderID = arcpy.GetParameterAsText(0)#'1058277'#arcpy.GetParameterAsText(0)#'968634'#arcpy.GetParameterAsText(0)
+    ImageType = arcpy.GetParameterAsText(1)#'geotiff'#pdf,geotiff,frame arcpy.GetParameterAsText(1)
+    UserMapScale = arcpy.GetParameterAsText(2)
+    FactoryCode = arcpy.GetParameterAsText(3)
     scratch = r'C:\Users\JLoucks\Documents\JL\test4'#arcpy.env.scratchFolder
     job_directory = r'\\192.168.136.164\v2_usaerial\JobData\test'
     mxdexport_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\Aerial_US_Export_new.mxd'
     wgs84_template = r'\\cabcvan1gis006\GISData\Aerial_US\mxd\wgs84_template.mxd'
+    symbol_layer = r'\\cabcvan1gis006\GISData\Aerial_US\layer\order_symbol.lyr'
     arcpy.env.overwriteOutput=True
 
     #Set dynamic or user defined scale
-    if UserMapScale != '':
-        UserMapScale = int(UserMapScale)*12
+    if UserMapScale != '' and FactoryCode == '':
+        PrintScale = int((int(UserMapScale)*12)*1.25)
+    elif UserMapScale != '' and FactoryCode == 'UTM':
+        PrintScale = int(int(UserMapScale)*12)
+    elif UserMapScale != '' and FactoryCode != '':
+        PrintScale = int(int(UserMapScale)*12)
     else:
         MapScale = 6000
-        UserMapScale = None
+        PrintScale = None
 
     ##get info for order from oracle
     orderInfo = Oracle('test').call_function('getorderinfo',orderID)
