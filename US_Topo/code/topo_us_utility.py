@@ -904,20 +904,33 @@ class topo_us_rpt(object):
             logoE = arcpy.mapping.ListLayoutElements(mxd, "PICTURE_ELEMENT", "logo")[0]
             logoE.sourceImage = os.path.join(cfg.logopath, self.newlogofile)
 
-    def oracleSummary(self, dictlist, pdfreport):
-        summarydata = []
+    def oracleSummary(self, dictlist, pdfreport,sort_order,map_scale,additional_years):
+        print dictlist
+        summarydata = {}
         topoSource = 'USGS'
+        inch_ft_scale = str(int(map_scale/12))
         for d in dictlist:
             tempyears = d.keys()
             tempyears.sort(reverse = True)
             for year in tempyears:
                 seriesText = d[year][1].replace("75", "7.5")
                 if year != "":
-                    summarydata.append([year, seriesText, topoSource])
+                    try:
+                        aerial_photo_year = additional_years[year][0]['aerial photo year']
+                    except KeyError:
+                        aerial_photo_year = ''
+                    try:
+                        aerial_revision_year = additional_years[year][0]['photo revision year']
+                    except KeyError:
+                        aerial_revision_year = ''
+                    quadtext = additional_years[year][1].split(',')[0]
+                    state = additional_years[year][1].split(',')[1][1:3]
+                    summarydata[year] = {'series':seriesText, 'source':topoSource,'quad':quadtext,'state':state,'aerial_photo_year':aerial_photo_year,'aerial_revision_year':aerial_revision_year}
             tempyears = None
                 
-        summarylist = {"ORDER_ID":self.order_obj.id,"FILENAME":pdfreport,"SUMMARY":summarydata}
+        summarylist = {"ORDER_ID":self.order_obj.id,"FILENAME":pdfreport,"SORT_ORDER":sort_order,"MAP_SCALE":map_scale,"INCH_FT_SCALE": inch_ft_scale,"SUMMARY":summarydata}
         topassorc = json.dumps(summarylist,ensure_ascii=False)
+        print '################################################ :'+ str(topassorc)
 
         try:
             function = 'eris_gis.AddTopoSummary'
@@ -926,7 +939,7 @@ class topo_us_rpt(object):
             if orc_return == 'Success':
                 arcpy.AddMessage("...Summary successfully populated to Oracle.")
             else:
-                arcpy.AddWarning("...Summary failed to populate to Oracle, check DB admin.")
+                arcpy.AddWarning("...Summary failed to populate to Oracle, check DB admin. Data attempted to pass: "+str(topassorc))
         except Exception as e:
             arcpy.AddError(e)
             arcpy.AddError("### Oracle eris_gis.AddTopoSummary failed... " + str(e))
@@ -985,16 +998,9 @@ class topo_us_rpt(object):
                 metadata = self.getXplorerImage(d, inprojection, outprojection, metadata, needtif)
 
             # insert to oracle
-            try:
-                expression  = "delete from overlay_image_info where order_id = %s and (type = 'topo75' or type = 'topo150' or type = 'topo15')" % str(self.order_obj.id)
-                self.oracle.exe(expression)
-
-                for item in metadata:
-                    expression = "insert into overlay_image_info values (%s, %s, %s, %.5f, %.5f, %.5f, %.5f, %s, '', '')" % (str(self.order_obj.id), str(self.order_obj.number), "'" + item['type']+"'", item['lat_sw'], item['long_sw'], item['lat_ne'], item['long_ne'],"'"+item['imagename']+"'" )
-                    self.oracle.exe(expression)
-            except Exception as e:
-                arcpy.AddError(e)
-                arcpy.AddError("### overlay_image_info failed...")
+            print metadata
+            function = 'eris_gis.populateOverlayImageInfo'
+            self.oracle.func(function, str, (int(self.order_obj.id),str(metadata)))
 
             if os.path.exists(os.path.join(cfg.viewerFolder, self.order_obj.number+"_topo")):
                 shutil.rmtree(os.path.join(cfg.viewerFolder, self.order_obj.number+"_topo"))
