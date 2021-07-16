@@ -1,14 +1,3 @@
-#-------------------------------------------------------------------------------
-# Name:        module1
-# Purpose:
-#
-# Author:      cchen
-#
-# Created:     16/01/2018
-# Copyright:   (c) cchen 2018
-# Licence:     <your licence>
-#-------------------------------------------------------------------------------
-
 import arcpy,os
 import ConfigParser
 
@@ -63,6 +52,7 @@ data_geol = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\GEOL_DD_MERGE'
 data_flood = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_Fld_haz_Ar_merged2018'
 data_floodpanel = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\S_FIRM_PAN_MERGED2018'
 data_wetland = r'\\cabcvan1gis005\GISData\Data\PSR\PSR.gdb\Merged_wetland_Final'
+us_states = r'\\cabcvan1gis006\GISData\Data\PSR\PSR.gdb\US_States'
 eris_wells = r"\\cabcvan1gis005\GISData\PSR\python\mxd\ErisWellSites.lyr"   #which contains water, oil/gas wells etc.
 path_shadedrelief = r"\\cabcvan1fpr009\US_DEM\hillshade13"
 datalyr_wetland = r"\\cabcvan1gis005\GISData\PSR\python\mxd\wetland_kml.lyr"
@@ -102,8 +92,8 @@ mxdfile_soil = r"\\cabcvan1gis005\GISData\PSR\python\mxd\soil.mxd"
 mxdMMfile_soil = r"\\cabcvan1gis005\GISData\PSR\python\mxd\soilMM.mxd"
 mxdfile_wells = r"\\cabcvan1gis005\GISData\PSR\python\mxd\wells.mxd"
 mxdMMfile_wells = r"\\cabcvan1gis005\GISData\PSR\python\mxd\wellsMM.mxd"
-mxd_survey_pipeline = r"\\cabcvan1gis005\GISData\PSR\python\mxd\survey_pipeline.mxd"
-mxd_survey_pipeline_mm = r"\\cabcvan1gis005\GISData\PSR\python\mxd\survey_pipeline_mm.mxd"
+mxd_survey_pipeline = r"\\cabcvan1gis006\GISData\PSR\python\mxd\survey_pipeline.mxd"
+mxd_survey_pipeline_mm = r"\\cabcvan1gis006\GISData\PSR\python\mxd\survey_pipeline_mm.mxd"
 
 srGCS83 = arcpy.SpatialReference(os.path.join(connectionPath, r"projections\GCSNorthAmerican1983.prj"))
 
