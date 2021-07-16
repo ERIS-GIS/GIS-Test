@@ -2153,7 +2153,7 @@ try:
         arcpy.AddField_management(wells_disp, "eleRank", "SHORT", "12", "6", "", "", "NULLABLE", "NON_REQUIRED", "")
         arcpy.ImportToolbox(PSR_config.tbx)
         arcpy.symbol_ERIS(wells_disp)
-         ## create a map with water wells and ogw wells
+         ## create a map with water wells and ogw wells!
         arcpy.FeatureClassToFeatureClass_conversion(wells_disp,scratch_folder,'ogw_wells_disp.shp',"SOURCE = 'OGW'")
         mxd_wells = arcpy.mapping.MapDocument(PSR_config.mxdfile_wells)
         df_wells = arcpy.mapping.ListDataFrames(mxd_wells,"*")[0]
