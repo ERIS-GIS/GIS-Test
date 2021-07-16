@@ -2124,22 +2124,25 @@ try:
         del rows
 
         wells_fin= os.path.join(scratch_folder,"wells_fin.shp")
-        arcpy.Select_analysis(wells_sja, wells_fin, '"MapKeyTot" = 1')
+        arcpy.Select_analysis(wells_sja, wells_fin, "\"MapKeyTot\" = 1")
         wells_disp= os.path.join(scratch_folder,"wells_disp.shp")
         arcpy.Sort_management(wells_fin, wells_disp, [["MapKeyLoc", "ASCENDING"]])
 
         arcpy.AddField_management(wells_disp, "Ele_diff", "DOUBLE", "12", "6", "", "", "NULLABLE", "NON_REQUIRED", "")
-        arcpy.CalculateField_management(wells_disp, 'Ele_diff', '!Elevation!-!Elevatio_1!', "PYTHON_9.3", "")
+        arcpy.CalculateField_management(wells_disp, "Ele_diff", "!Elevation!-!Elevatio_1!", "PYTHON_9.3", "")
         arcpy.AddField_management(wells_disp, "eleRank", "SHORT", "12", "6", "", "", "NULLABLE", "NON_REQUIRED", "")
         arcpy.ImportToolbox(PSR_config.tbx)
         arcpy.symbol_ERIS(wells_disp)
          ## create a map with water wells and ogw wells
-
+        arcpy.FeatureClassToFeatureClass_conversion(wells_disp,scratch_folder,'ogw_wells_disp.shp',"SOURCE = 'OGW'")
+        mxd_wells = arcpy.mapping.MapDocument(PSR_config.mxdfile_wells)
         df_wells = arcpy.mapping.ListDataFrames(mxd_wells,"*")[0]
         df_wells.spatialReference = spatialRef
 
-        lyr = arcpy.mapping.ListLayers(mxd_wells, "wells", df_wells)[0]
-        lyr.replaceDataSource(scratch_folder,"SHAPEFILE_WORKSPACE", "wells_disp")
+        lyr = arcpy.mapping.ListLayers(mxd_wells, "Wells", df_wells)[0]
+        lyr.replaceDataSource(scratchfolder,"SHAPEFILE_WORKSPACE", "wells_disp")
+        ogw_lyr = arcpy.mapping.ListLayers(mxd_wells, "Wells_ogw", df_wells)[0]
+        ogw_lyr.replaceDataSource(scratchfolder,"SHAPEFILE_WORKSPACE", "ogw_wells_disp")
     else:
         print "--- WaterWells section, no water wells exists "
         mxd_wells = arcpy.mapping.MapDocument(PSR_config.mxdfile_wells)
