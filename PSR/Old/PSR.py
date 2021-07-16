@@ -2160,9 +2160,9 @@ try:
         df_wells.spatialReference = spatialRef
 
         lyr = arcpy.mapping.ListLayers(mxd_wells, "Wells", df_wells)[0]
-        lyr.replaceDataSource(scratchfolder,"SHAPEFILE_WORKSPACE", "wells_disp")
+        lyr.replaceDataSource(scratch_folder,"SHAPEFILE_WORKSPACE", "wells_disp")
         ogw_lyr = arcpy.mapping.ListLayers(mxd_wells, "Wells_ogw", df_wells)[0]
-        ogw_lyr.replaceDataSource(scratchfolder,"SHAPEFILE_WORKSPACE", "ogw_wells_disp")
+        ogw_lyr.replaceDataSource(scratch_folder,"SHAPEFILE_WORKSPACE", "ogw_wells_disp")
     else:
         print "--- WaterWells section, no water wells exists "
         mxd_wells = arcpy.mapping.MapDocument(PSR_config.mxdfile_wells)
